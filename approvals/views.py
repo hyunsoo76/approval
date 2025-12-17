@@ -56,7 +56,7 @@ def approval_create(request):
         dept    = request.POST.get("department", "")
         name    = request.POST.get("name", "")
         title   = request.POST.get("title", "")
-        content = request.POST.get("content", "")
+        content = request.POST.get("content", "").lstrip()
         # doc_date 는 지금은 DB에 안 넣고, 나중에 필요하면 필드 추가
 
         manager_sig_data = request.POST.get("manager_signature", "")
