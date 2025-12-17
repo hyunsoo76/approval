@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>품의서 목록</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "맑은 고딕", sans-serif;
+      margin: 20px;
+    }
+    h1 {
+      font-size: 24px;
+      margin-bottom: 16px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+    th, td {
+      border: 1px solid #ddd;
+      padding: 6px 8px;
+      text-align: left;
+    }
+    th {
+      background: #f4f4f4;
+    }
+    tr:hover {
+      background: #fafafa;
+    }
+    .status-wait {
+      color: #d97a00;
+      font-weight: 600;
+    }
+    .status-done {
+      color: #0a8a0a;
+      font-weight: 600;
+    }
+    .btn-new {
+      display: inline-block;
+      margin-bottom: 10px;
+      padding: 6px 12px;
+      border: 1px solid #888;
+      background: #eee;
+      text-decoration: none;
+      color: #333;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>품의서 목록</h1>
+
+  <a href="{% url 'approvals:new' %}" class="btn-new">+ 새 품의서 작성</a>
+
+  <table>
+    <thead>
+      <tr>
+        <th style="width:60px;">번호</th>
+        <th style="width:120px;">작성일</th>
+        <th style="width:120px;">소속</th>
+        <th style="width:80px;">성명</th>
+        <th>제목</th>
+        <th style="width:100px;">상태</th>
+        <th style="width:140px;">링크</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for approval in approvals %}
+        <tr>
+          <td>{{ approval.id }}</td>
+          <td>{{ approval.created_at|date:"Y-m-d" }}</td>
+          <td>{{ approval.department }}</td>
+          <td>{{ approval.name }}</td>
+          <td>
+            <a href="{% url 'approvals:detail' approval.id %}">
+              {{ approval.title }}
+            </a>
+          </td>
+          <td>
+            {% if approval.admin_signature %}
+              <span class="status-done">결재 완료</span>
+            {% else %}
+              <span class="status-wait">결재 대기</span>
+            {% endif %}
+          </td>
+          <td>
+            <!-- 상대 경로: 카톡에 붙여넣을 땐 서버 주소만 앞에 붙이면 됨 -->
+            /approval/{{ approval.id }}/
+          </td>
+        </tr>
+      {% empty %}
+        <tr>
+          <td colspan="7">등록된 품의서가 없습니다.</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+</body>
+</html>

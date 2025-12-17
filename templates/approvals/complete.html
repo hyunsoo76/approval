@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>품의서 제출 완료</title>
+</head>
+<body>
+  <h2>품의서가 정상적으로 제출되었습니다.</h2>
+  <p>제목: {{ approval.title }}</p>
+  <p>성명: {{ approval.name }}</p>
+  <p>제출 시각: {{ approval.created_at }}</p>
+
+  <p>
+    <a href="/approval/new/">새 품의서 작성하기</a>
+  </p>
+</body>
+</html>

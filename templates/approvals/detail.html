@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>품의서 상세 - {{ approval.title }}</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "맑은 고딕", sans-serif;
+      margin: 20px;
+    }
+
+    .paper {
+      width: 100%;
+      max-width: 900px;
+      border: 1px solid #000;
+      padding: 20px;
+      box-sizing: border-box;
+      margin: 0 auto;
+      background: #fff;
+    }
+
+    /* ===== 헤더(제목 + 날짜 + 결재란) ===== */
+    .header-wrapper {
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      margin-bottom: 10px;
+    }
+
+    .header-left {
+      flex: 1;
+      text-align: center;
+    }
+
+    .title-row {
+      margin-bottom: 4px;
+    }
+
+    .title-row h1 {
+      margin: 0;
+      font-size: 36px;
+      letter-spacing: 0.4em;
+    }
+
+    .date-row {
+      text-align: center;
+      margin: 10px 0 20px 0;
+      font-size: 16px;
+    }
+
+    .date-row input {
+      border: none;
+      border-bottom: 1px solid #000;
+      text-align: center;
+      font-size: 16px;
+      width: 160px;
+      background: transparent;
+    }
+
+    /* 오른쪽 결재란 */
+    .sign-table {
+      margin-left: auto;
+      border-collapse: collapse;
+      border: 1px solid #000;
+      font-size: 14px;
+      background: #fff;
+    }
+
+    .sign-table th,
+    .sign-table td {
+      border: 1px solid #000;
+      width: 80px;
+      height: 40px;
+      text-align: center;
+      vertical-align: middle;
+    }
+
+    .sign-box {
+      width: 80px;
+      height: 80px;
+      cursor: pointer;
+      position: relative;
+    }
+
+    /* 읽기전용(기안/완료된 결재) 박스 */
+    .sign-box.readonly {
+      cursor: default;
+    }
+
+    .sign-box-inner {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      color: #666;
+      text-align: center;
+    }
+
+    .sign-preview {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 90%;
+      height: 90%;
+      object-fit: contain;
+      display: none;  /* 기본 숨김, 템플릿/JS에서 필요시 표시 */
+    }
+
+    /* ===== 본문 테이블 ===== */
+    .info-table,
+    .subject-table,
+    .content-table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+      margin-bottom: 10px;
+    }
+
+    .info-table th,
+    .info-table td,
+    .subject-table th,
+    .subject-table td,
+    .content-table th,
+    .content-table td {
+      border: 1px solid #000;
+      padding: 6px;
+      font-size: 14px;
+    }
+
+    .info-table th,
+    .subject-table th,
+    .content-table th {
+      width: 80px;
+      text-align: center;
+      background-color: #f8f8f8;
+    }
+
+    .info-value,
+    .subject-value {
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    .content-table td {
+      height: 400px;
+      vertical-align: top;
+    }
+
+    .content-value {
+      width: 100%;
+      height: 100%;
+      box-sizing: border-box;
+      white-space: pre-wrap;  /* 줄바꿈, 공백 유지 */
+    }
+
+    .hint {
+      font-size: 13px;
+      color: #444;
+      margin-top: 8px;
+    }
+
+    .btn-row {
+      margin-top: 20px;
+      text-align: center;
+    }
+
+    button {
+      padding: 8px 20px;
+      font-size: 14px;
+      cursor: pointer;
+      border: 1px solid #aaa;
+      border-radius: 4px;
+      background: #ddd;
+    }
+
+    /* ===== 서명 모달 ===== */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 999;
+    }
+
+    .modal {
+      background: #fff;
+      padding: 20px;
+      border-radius: 6px;
+      width: 420px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+    }
+
+    .modal-title {
+      margin: 0 0 10px 0;
+      font-size: 18px;
+    }
+
+    #signature-canvas {
+      border: 1px solid #000;
+      width: 380px;
+      height: 160px;
+      touch-action: none;
+    }
+
+    .modal-buttons {
+      margin-top: 10px;
+      text-align: right;
+    }
+
+    .modal-buttons button {
+      margin-left: 6px;
+    }
+
+    /* ===== 모바일 (가로 600px 이하) ===== */
+    @media (max-width: 600px) {
+      body {
+        margin: 10px;
+        font-size: 13px;
+      }
+
+      .paper {
+        padding: 10px;
+      }
+
+      .header-wrapper {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .header-left {
+        margin-bottom: 10px;
+      }
+
+      .title-row h1 {
+        font-size: 28px;
+        letter-spacing: 0.25em;
+      }
+
+      .date-row {
+        margin: 8px 0 12px 0;
+        font-size: 14px;
+      }
+
+      .date-row input {
+        font-size: 14px;
+        width: 140px;
+      }
+
+      .sign-table {
+        align-self: flex-end;
+      }
+
+      .sign-table th,
+      .sign-table td {
+        width: 70px;
+        height: 36px;
+        font-size: 12px;
+      }
+
+      .sign-box {
+        width: 70px;
+        height: 70px;
+      }
+
+      .sign-box-inner {
+        font-size: 11px;
+      }
+
+      .info-table,
+      .subject-table,
+      .content-table {
+        font-size: 13px;
+      }
+
+      .info-table th,
+      .subject-table th,
+      .content-table th {
+        width: 70px;
+      }
+
+      .content-table td {
+        height: 260px;
+      }
+
+      .modal {
+        width: 95%;
+        max-width: 420px;
+        padding: 14px;
+      }
+
+      #signature-canvas {
+        width: 100%;
+        height: 150px;
+      }
+    }
+      /* detail 내용 표시 영역: 안으로 넣고 넘치면 스크롤 */
+      .content-table td {
+        overflow: auto;          /* 밖으로 튀어나오지 않게 */
+      }
+
+      .content-value {
+        max-width: 100%;
+        overflow: auto;          /* 표/이미지가 크면 가로 스크롤 */
+      }
+
+      /* 붙여넣은 이미지(특히 base64 img) 크기 강제 맞춤 */
+      .content-value img {
+        max-width: 100% !important;
+        height: auto !important;
+        display: block;
+      }
+
+      /* 붙여넣은 표(엑셀/웹에서 복사한 table)도 폭 제한 */
+      .content-value table {
+        max-width: 100% !important;
+        width: 100% !important;
+        table-layout: fixed;     /* 셀 폭 고정해서 넘침 방지 */
+        border-collapse: collapse;
+      }
+
+      /* 표 셀 안 글씨/숫자 줄바꿈 되게 */
+      .content-value th,
+      .content-value td {
+        word-break: break-word;
+        overflow-wrap: anywhere;
+      }
+      
+      .done-row{
+      margin-top: 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+    }
+
+    .done-msg-left{
+      color: #0a7c1f;
+      font-weight: bold;
+      flex: 1;
+    }
+
+    .done-msg-right{
+      text-align: right;
+      font-size: 13px;
+      line-height: 1.5;
+      white-space: nowrap;  /* 오른쪽 영역 줄바꿈 방지 */
+    }
+
+    /* 모바일에서는 오른쪽이 너무 빡빡하면 아래로 내려가게 */
+    @media (max-width: 600px){
+      .done-row{ flex-direction: column; }
+      .done-msg-right{
+        text-align: left;
+        white-space: normal;
+      }
+    }
+
+</style>
+</head>
+<body>
+<div class="paper">
+
+  <!-- ===== 결재 상세 폼 ===== -->
+  <form id="approval-detail-form" method="post">
+    {% csrf_token %}
+    <!-- 결재자 서명 데이터만 전송 -->
+    <input type="hidden" name="admin_signature" id="admin_signature_input">
+
+    <!-- ===== 헤더 (제목 + 날짜 + 결재란) ===== -->
+    <div class="header-wrapper">
+      <div class="header-left">
+        <div class="title-row">
+          <h1>품 의 서</h1>
+        </div>
+        <div class="date-row">
+          <input type="text"
+                 value="{{ approval.doc_date|default_if_none:approval.created_at|date:'Y-m-d' }}"
+                 readonly>
+        </div>
+      </div>
+
+      <table class="sign-table">
+        <tr>
+          <th>기안</th>
+          <th>결재</th>
+        </tr>
+        <tr>
+          <!-- 기안 서명(읽기 전용) -->
+          <td>
+            <div class="sign-box readonly">
+              {% if approval.manager_signature %}
+                <img src="{{ approval.manager_signature.url }}"
+                     class="sign-preview"
+                     alt="기안 서명"
+                     style="display:block;">
+              {% else %}
+                <div class="sign-box-inner">기안 서명 없음</div>
+              {% endif %}
+            </div>
+          </td>
+
+          <!-- 결재 서명 -->
+          <td>
+            {% if approval.admin_signature %}
+              <!-- 이미 서명 완료: 읽기 전용 -->
+              <div class="sign-box readonly">
+                <img src="{{ approval.admin_signature.url }}"
+                     class="sign-preview"
+                     alt="결재 서명"
+                     style="display:block;">
+              </div>
+            {% else %}
+              <!-- 아직 서명 전: 클릭해서 서명 -->
+              <div class="sign-box" id="admin-sign-box">
+                <img id="admin-sign-preview"
+                     class="sign-preview"
+                     alt="결재 서명">
+                <div class="sign-box-inner">
+                  서명 click
+                </div>
+              </div>
+            {% endif %}
+          </td>
+        </tr>
+      </table>
+    </div>
+
+    <!-- ===== 소속 / 성명 ===== -->
+    <table class="info-table">
+      <tr>
+        <th>소속</th>
+        <td><div class="info-value">{{ approval.department }}</div></td>
+        <th>성명</th>
+        <td><div class="info-value">{{ approval.name }}</div></td>
+      </tr>
+    </table>
+
+    <!-- ===== 제목 ===== -->
+    <table class="subject-table">
+      <tr>
+        <th>제목</th>
+        <td><div class="subject-value">{{ approval.title }}</div></td>
+      </tr>
+    </table>
+
+    <!-- ===== 내용 ===== -->
+    <table class="content-table">
+          <tr>
+            <th>내용</th>
+            <td>
+              <div class="content-value">
+                {{ approval.content|safe }}
+              </div>
+            </td>
+          </tr>
+    </table>
+
+    <!-- ===== 안내 문구 / 닫기 버튼 ===== -->
+    {% if approval.manager_signature and approval.admin_signature %}
+        <div class="done-row">
+          <div class="done-msg-left">
+            ✅ 결재자 서명이 완료/전송 되었습니다.
+          </div>
+
+          <div class="done-msg-right">
+            <div>
+                결재 시각:
+              {% if approval.approved_at %}
+                  {{ approval.approved_at|date:"Y-m-d H:i" }}
+              {% else %}
+                  -
+              {% endif %}
+              </div>
+            <div>접속 IP: {{ approval.approved_ip|default:"-" }}</div>
+            <div>기기: {{ approval.approved_device|default:"-" }}</div>
+          </div>
+        </div>
+      
+
+    
+      <div style="text-align:center; margin-top:20px;">
+        <button type="button"
+                onclick="closePage()"
+                style="padding:10px 20px; border:1px solid #555; background:#eee; font-size:15px; border-radius:6px;">
+          닫기
+        </button>
+      </div>
+    {% else %}
+      <!-- 아직 결재 서명 전 -->
+      <p class="hint" style="margin-top:15px;">
+        ✅ 오른쪽 상단의 <strong>결재란(‘결재’ 칸)</strong>을 클릭하여 서명 후 자동으로 전송됩니다.
+      </p>
+    {% endif %}
+  </form>
+
+  <!-- 닫기 버튼 클릭 후 보여줄 안내 화면 (초기에는 숨김) -->
+  <div id="close-info-panel" style="display:none; text-align:center; margin-top:40px;">
+    <p style="font-size:16px; margin-bottom:12px;">
+      ✅ 기안자와 결재자 서명이 모두 완료된 품의서입니다.
+      
+    </p>
+    <p style="font-size:14px; color:#555; line-height:1.6;">
+      브라우저(또는 카카오톡 인앱 브라우저)의<br>
+      <strong>닫기(X)</strong>버튼을 눌러<br>
+      이 창을 닫아주세요.
+    </p>
+  </div>
+
+</div>
+
+<!-- ===== 서명 모달 ===== -->
+<div class="modal-backdrop" id="sign-modal-backdrop">
+  <div class="modal">
+    <h3 class="modal-title" id="sign-modal-title">결재 서명</h3>
+    <canvas id="signature-canvas"></canvas>
+    <div class="modal-buttons">
+      <button type="button" id="clear-sign">지우기</button>
+      <button type="button" id="cancel-sign">취소</button>
+      <button type="button" id="apply-sign">적용</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const modalBackdrop = document.getElementById('sign-modal-backdrop');
+  const canvas = document.getElementById('signature-canvas');
+  const ctx = canvas.getContext('2d');
+  const adminSignBox = document.getElementById('admin-sign-box');
+  const adminSigInput = document.getElementById('admin_signature_input');
+  const adminPreview = document.getElementById('admin-sign-preview');
+
+  if (canvas) {
+    canvas.width = 380;
+    canvas.height = 160;
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = '#000';
+  }
+
+  let drawing = false;
+
+  function getPos(e) {
+    const rect = canvas.getBoundingClientRect();
+    if (e.touches && e.touches.length > 0) {
+      return {
+        x: e.touches[0].clientX - rect.left,
+        y: e.touches[0].clientY - rect.top
+      };
+    } else {
+      return {
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top
+      };
+    }
+  }
+
+  function startDraw(e) {
+    e.preventDefault();
+    drawing = true;
+    const pos = getPos(e);
+    ctx.beginPath();
+    ctx.moveTo(pos.x, pos.y);
+  }
+
+  function moveDraw(e) {
+    if (!drawing) return;
+    e.preventDefault();
+    const pos = getPos(e);
+    ctx.lineTo(pos.x, pos.y);
+    ctx.stroke();
+  }
+
+  function endDraw(e) {
+    if (!drawing) return;
+    e.preventDefault();
+    drawing = false;
+  }
+
+  if (canvas) {
+    canvas.addEventListener('mousedown', startDraw);
+    canvas.addEventListener('mousemove', moveDraw);
+    canvas.addEventListener('mouseup', endDraw);
+    canvas.addEventListener('mouseleave', endDraw);
+
+    canvas.addEventListener('touchstart', startDraw, {passive:false});
+    canvas.addEventListener('touchmove', moveDraw, {passive:false});
+    canvas.addEventListener('touchend', endDraw, {passive:false});
+    canvas.addEventListener('touchcancel', endDraw, {passive:false});
+  }
+
+  // 결재 서명 박스 클릭 시 모달 열기 (서명 전일 때만 존재)
+  if (adminSignBox) {
+    adminSignBox.addEventListener('click', function () {
+      if (!canvas) return;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      modalBackdrop.style.display = 'flex';
+    });
+  }
+
+  const clearBtn  = document.getElementById('clear-sign');
+  const cancelBtn = document.getElementById('cancel-sign');
+  const applyBtn  = document.getElementById('apply-sign');
+
+  if (clearBtn) {
+    clearBtn.addEventListener('click', function () {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    });
+  }
+
+  if (cancelBtn) {
+    cancelBtn.addEventListener('click', function () {
+      modalBackdrop.style.display = 'none';
+    });
+  }
+
+  if (applyBtn) {
+    applyBtn.addEventListener('click', function () {
+      const dataUrl = canvas.toDataURL('image/png');
+      adminSigInput.value = dataUrl;
+
+      if (adminPreview) {
+        adminPreview.src = dataUrl;
+        adminPreview.style.display = 'block';
+        const inner = adminPreview.nextElementSibling;
+        if (inner) inner.style.display = 'none';
+      }
+
+      modalBackdrop.style.display = 'none';
+
+      // ✅ 결재 서명 적용 후 바로 서버로 전송
+      document.getElementById('approval-detail-form').submit();
+    });
+  }
+
+  // 닫기 버튼 동작: 창 닫기 시도 + 안내 화면으로 전환
+  function closePage() {
+    try {
+      window.close();   // 팝업/새창일 때는 닫힐 수 있음
+    } catch (e) {
+      // 무시
+    }
+
+    // 폼 숨기기
+    var formEl = document.getElementById('approval-detail-form');
+    if (formEl) {
+      formEl.style.display = 'none';
+    }
+
+    // 안내 패널 보여주기
+    var panel = document.getElementById('close-info-panel');
+    if (panel) {
+      panel.style.display = 'block';
+    }
+   // ✅ 현재 히스토리 엔트리를 교체(뒤로가기로 이전 상태로 돌아갈 확률↓)
+  history.replaceState(null, "", location.href); 
+
+    // ❌ history.back() / location.href 사용 안 함
+    //    → 서명 전 화면으로 돌아가지 않도록.
+  }
+  
+</script>
+</body>
+</html>

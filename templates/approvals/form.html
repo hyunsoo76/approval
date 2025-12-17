@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>품의서</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "맑은 고딕", sans-serif;
+      margin: 20px;
+    }
+    .paper {
+      width: 100%;
+      max-width: 900px;
+      border: 1px solid #000;
+      padding: 20px;
+      box-sizing: border-box;
+      margin: 0 auto;
+      background: #fff;
+    }
+
+    /* ===== 헤더(제목 + 날짜 + 결재란) ===== */
+
+    .header-wrapper {
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      margin-bottom: 10px;
+    }
+    .header-left {
+      flex: 1;
+      text-align: center;
+    }
+    .title-row {
+      margin-bottom: 4px;
+    }
+    .title-row h1 {
+      margin: 0;
+      font-size: 36px;
+      letter-spacing: 0.4em;
+    }
+    .date-row {
+      text-align: center;
+      margin: 10px 0 20px 0;
+      font-size: 16px;
+    }
+    .date-row input {
+      border: none;
+      border-bottom: 1px solid #000;
+      text-align: center;
+      font-size: 16px;
+      width: 160px;
+      background: transparent;
+    }
+
+    .sign-table {
+      margin-left: auto;
+      border-collapse: collapse;
+      border: 1px solid #000;
+      font-size: 14px;
+      background: #fff;
+    }
+    .sign-table th,
+    .sign-table td {
+      border: 1px solid #000;
+      width: 80px;
+      height: 40px;
+      text-align: center;
+      vertical-align: middle;
+    }
+    .sign-box {
+      width: 80px;
+      height: 80px;
+      cursor: pointer;
+      position: relative;
+    }
+    .sign-box-inner {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      color: #666;
+      text-align: center;
+    }
+    .sign-preview {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 90%;
+      height: 90%;
+      object-fit: contain;
+      display: none;
+    }
+
+    /* ===== 본문 테이블 ===== */
+
+    .info-table,
+    .subject-table,
+    .content-table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+      margin-bottom: 10px;
+    }
+    .info-table th,
+    .info-table td,
+    .subject-table th,
+    .subject-table td,
+    .content-table th,
+    .content-table td {
+      border: 1px solid #000;
+      padding: 6px;
+      font-size: 14px;
+    }
+    .info-table th,
+    .subject-table th,
+    .content-table th {
+      width: 80px;
+      text-align: center;
+      background-color: #f8f8f8;
+    }
+
+    .info-table th {
+      width: 80px;
+    }
+    .info-table td {
+      width: auto;
+    }
+    .info-table input {
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    /* 제목 input */
+    .subject-table input {
+      width: 100%;
+      box-sizing: border-box;
+      border: none;
+      outline: none;
+      font-size: 14px;
+    }
+
+    /* ===== 내용 에디터(텍스트 + 이미지 붙여넣기) ===== */
+    .content-editor-wrapper {
+      width: 100%;
+      height: 400px;
+      box-sizing: border-box;
+    }
+    .content-editor {
+      width: 100%;
+      height: 100%;
+      box-sizing: border-box;
+      outline: none;
+      border: none;
+      resize: none;
+      white-space: pre-wrap;
+      overflow-y: auto;
+    }
+    .content-editor[contenteditable="true"]:empty:before {
+      content: attr(data-placeholder);
+      color: #aaa;
+    }
+    .content-editor img {
+      max-width: 100%;
+      display: block;
+      margin: 4px 0;
+    }
+
+    .btn-row {
+      margin-top: 20px;
+      text-align: center;
+    }
+    button {
+      padding: 8px 20px;
+      font-size: 14px;
+      cursor: pointer;
+      border: 1px solid #aaa;
+      border-radius: 4px;
+      background: #ddd;
+    }
+
+    /* ===== 서명 모달 ===== */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 999;
+    }
+    .modal {
+      background: #fff;
+      padding: 20px;
+      border-radius: 6px;
+      width: 420px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+    }
+    .modal-title {
+      margin: 0 0 10px 0;
+      font-size: 18px;
+    }
+    #signature-canvas {
+      border: 1px solid #000;
+      width: 380px;
+      height: 160px;
+      touch-action: none;
+    }
+    .modal-buttons {
+      margin-top: 10px;
+      text-align: right;
+    }
+    .modal-buttons button {
+      margin-left: 6px;
+    }
+
+    /* ===== 모바일 ===== */
+    @media (max-width: 600px) {
+      body {
+        margin: 10px;
+        font-size: 13px;
+      }
+      .paper {
+        padding: 10px;
+      }
+      .header-wrapper {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      .header-left {
+        margin-bottom: 10px;
+      }
+      .title-row h1 {
+        font-size: 28px;
+        letter-spacing: 0.25em;
+      }
+      .date-row {
+        margin: 8px 0 12px 0;
+        font-size: 14px;
+      }
+      .date-row input {
+        font-size: 14px;
+        width: 140px;
+      }
+      .sign-table {
+        align-self: flex-end;
+      }
+      .sign-table th,
+      .sign-table td {
+        width: 70px;
+        height: 36px;
+        font-size: 12px;
+      }
+      .sign-box {
+        width: 70px;
+        height: 70px;
+      }
+      .sign-box-inner {
+        font-size: 11px;
+      }
+      .content-editor-wrapper {
+        height: 260px;
+      }
+    }
+  </style>
+</head>
+<body>
+<div class="paper">
+  <form id="approval-form" method="post">
+    {% csrf_token %}
+
+    <!-- 서명 데이터 -->
+    <input type="hidden" name="manager_signature" id="manager_signature_input">
+    <input type="hidden" name="admin_signature" id="admin_signature_input">
+
+    <!-- ===== 헤더 ===== -->
+    <div class="header-wrapper">
+      <div class="header-left">
+        <div class="title-row">
+          <h1>품 의 서</h1>
+        </div>
+        <div class="date-row">
+          <input type="text" id="doc_date" name="doc_date" readonly>
+        </div>
+      </div>
+
+      <table class="sign-table">
+        <tr>
+          <th>기안</th>
+          <th>결재</th>
+        </tr>
+        <tr>
+          <td>
+            <div class="sign-box" data-role="manager">
+              <img id="manager-sign-preview" class="sign-preview" alt="기안 서명">
+              <div class="sign-box-inner">서명 click</div>
+            </div>
+          </td>
+          <td>
+            <div class="sign-box" data-role="admin">
+              <img id="admin-sign-preview" class="sign-preview" alt="결재 서명">
+              <div class="sign-box-inner">서명 click</div>
+            </div>
+          </td>
+        </tr>
+      </table>
+    </div>
+
+    <!-- ===== 소속 / 성명 ===== -->
+    <table class="info-table">
+      <tr>
+        <th>소속</th>
+        <td><input type="text" name="department" placeholder="예) 대진산업"></td>
+        <th>성명</th>
+        <td><input type="text" name="name"></td>
+      </tr>
+    </table>
+
+    <!-- ===== 제목 ===== -->
+    <table class="subject-table">
+      <tr>
+        <th>제목</th>
+        <td><input type="text" name="title"></td>
+      </tr>
+    </table>
+
+    <!-- ===== 내용 (텍스트 + 이미지) ===== -->
+    <table class="content-table">
+      <tr>
+        <th>내용</th>
+        <td>
+          <div class="content-editor-wrapper">
+            <!-- 사용자 입력용 -->
+            <div id="content-editor"
+                 class="content-editor"
+                 contenteditable="true"
+                 data-placeholder="내용을 입력하거나 스크린샷을 붙여넣기 하세요."></div>
+            <!-- 서버로 보내는 실제 필드 -->
+            <textarea id="content-input" name="content" style="display:none;"></textarea>
+          </div>
+        </td>
+      </tr>
+    </table>
+
+    <div class="btn-row">
+      <button type="button" id="submit-btn">제출</button>
+    </div>
+  </form>
+</div>
+
+<!-- ===== 서명 모달 ===== -->
+<div class="modal-backdrop" id="sign-modal-backdrop">
+  <div class="modal">
+    <h3 class="modal-title" id="sign-modal-title">서명</h3>
+    <canvas id="signature-canvas"></canvas>
+    <div class="modal-buttons">
+      <button type="button" id="clear-sign">지우기</button>
+      <button type="button" id="cancel-sign">취소</button>
+      <button type="button" id="apply-sign">적용</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // === 날짜 자동 입력 ===
+  (function setToday() {
+    var d = new Date();
+    var yyyy = d.getFullYear();
+    var mm = ('0' + (d.getMonth() + 1)).slice(-2);
+    var dd = ('0' + d.getDate()).slice(-2);
+    document.getElementById('doc_date').value = yyyy + '-' + mm + '-' + dd;
+  })();
+
+  // === 내용 에디터(텍스트 + 이미지 붙여넣기) ===
+  const editor = document.getElementById('content-editor');
+  const hiddenContent = document.getElementById('content-input');
+
+  // 이미지 붙여넣기 처리
+  editor.addEventListener('paste', function (e) {
+    const items = (e.clipboardData || window.clipboardData).items;
+    if (!items) return;
+
+    let handledImage = false;
+
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (item.type && item.type.indexOf('image') !== -1) {
+        handledImage = true;
+        const file = item.getAsFile();
+        const reader = new FileReader();
+        reader.onload = function (ev) {
+          const img = document.createElement('img');
+          img.src = ev.target.result;  // dataURL
+          editor.appendChild(img);
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+
+    // 이미지를 처리한 경우 기본 붙여넣기(텍스트)는 막음
+    if (handledImage) {
+      e.preventDefault();
+    }
+  });
+
+  // 제출 시: editor의 HTML을 hidden textarea에 넣어서 서버로 전송
+  document.getElementById('submit-btn').addEventListener('click', function () {
+    hiddenContent.value = editor.innerHTML;
+    document.getElementById('approval-form').submit();
+  });
+
+  // === 서명 모달 ===
+  const modalBackdrop = document.getElementById('sign-modal-backdrop');
+  const canvas = document.getElementById('signature-canvas');
+  const ctx = canvas.getContext('2d');
+  canvas.width = 380;
+  canvas.height = 160;
+  ctx.lineWidth = 2;
+  ctx.lineCap = 'round';
+  ctx.strokeStyle = '#000';
+
+  let drawing = false;
+  let currentRole = null;  // 'manager' or 'admin'
+
+  function getPos(e) {
+    const rect = canvas.getBoundingClientRect();
+    if (e.touches && e.touches.length > 0) {
+      return {
+        x: e.touches[0].clientX - rect.left,
+        y: e.touches[0].clientY - rect.top
+      };
+    } else {
+      return {
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top
+      };
+    }
+  }
+
+  function startDraw(e) {
+    e.preventDefault();
+    drawing = true;
+    const pos = getPos(e);
+    ctx.beginPath();
+    ctx.moveTo(pos.x, pos.y);
+  }
+  function moveDraw(e) {
+    if (!drawing) return;
+    e.preventDefault();
+    const pos = getPos(e);
+    ctx.lineTo(pos.x, pos.y);
+    ctx.stroke();
+  }
+  function endDraw(e) {
+    if (!drawing) return;
+    e.preventDefault();
+    drawing = false;
+  }
+
+  canvas.addEventListener('mousedown', startDraw);
+  canvas.addEventListener('mousemove', moveDraw);
+  canvas.addEventListener('mouseup', endDraw);
+  canvas.addEventListener('mouseleave', endDraw);
+  canvas.addEventListener('touchstart', startDraw, {passive:false});
+  canvas.addEventListener('touchmove', moveDraw, {passive:false});
+  canvas.addEventListener('touchend', endDraw, {passive:false});
+  canvas.addEventListener('touchcancel', endDraw, {passive:false});
+
+  // 서명 박스 클릭
+  document.querySelectorAll('.sign-box').forEach(function (box) {
+    box.addEventListener('click', function () {
+      currentRole = box.getAttribute('data-role');
+      document.getElementById('sign-modal-title').textContent =
+        (currentRole === 'manager') ? '기안 서명' : '결재 서명';
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      modalBackdrop.style.display = 'flex';
+    });
+  });
+
+  document.getElementById('clear-sign').addEventListener('click', function () {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  });
+  document.getElementById('cancel-sign').addEventListener('click', function () {
+    modalBackdrop.style.display = 'none';
+  });
+  document.getElementById('apply-sign').addEventListener('click', function () {
+    const dataUrl = canvas.toDataURL('image/png');
+    if (currentRole === 'manager') {
+      document.getElementById('manager_signature_input').value = dataUrl;
+      const img = document.getElementById('manager-sign-preview');
+      img.src = dataUrl;
+      img.style.display = 'block';
+      img.nextElementSibling.style.display = 'none';
+    } else if (currentRole === 'admin') {
+      document.getElementById('admin_signature_input').value = dataUrl;
+      const img = document.getElementById('admin-sign-preview');
+      img.src = dataUrl;
+      img.style.display = 'block';
+      img.nextElementSibling.style.display = 'none';
+    }
+    modalBackdrop.style.display = 'none';
+  });
+</script>
+</body>
+</html>
