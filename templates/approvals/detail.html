@@ -307,7 +307,9 @@
 
       .content-value {
         max-width: 100%;
-        overflow: auto;          /* 표/이미지가 크면 가로 스크롤 */
+        overflow: auto;
+        white-space: pre-wrap;
+        word-break: break-word;          /* 표/이미지가 크면 가로 스크롤 */
       }
 
       /* 붙여넣은 이미지(특히 base64 img) 크기 강제 맞춤 */
