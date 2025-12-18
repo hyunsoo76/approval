@@ -154,7 +154,7 @@
       width: 100%;
       height: 100%;
       box-sizing: border-box;
-      white-space: pre-wrap;  /* 줄바꿈, 공백 유지 */
+      white-space: pre-normal;  
     }
 
     .hint {
@@ -455,7 +455,7 @@
             <th>내용</th>
             <td>
               <div class="content-value">
-                {{ approval.content|striptags|linebreaksbr }}
+                {{ approval.content|linebreaksbr }}
               </div>
             </td>
           </tr>
