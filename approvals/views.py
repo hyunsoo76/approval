@@ -1,7 +1,7 @@
 import base64
 import uuid
 import os
-
+import html 
 from django.conf import settings
 from django.shortcuts import render, get_object_or_404, redirect
 from .models import ApprovalRequest
@@ -59,6 +59,7 @@ def approval_create(request):
         content = request.POST.get("content", "")
         content = "\n".join(line.lstrip() for line in content.splitlines())
         # doc_date 는 지금은 DB에 안 넣고, 나중에 필요하면 필드 추가
+        content = html.unescape(content)
 
         manager_sig_data = request.POST.get("manager_signature", "")
 
