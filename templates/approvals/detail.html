@@ -454,9 +454,8 @@
           <tr>
             <th>내용</th>
             <td>
-              <div class="content-value">
-                {{ approval.content|linebreaksbr }}
-              </div>
+              <div class="content-value">{{ approval.content|safe }}</div>
+
             </td>
           </tr>
     </table>
