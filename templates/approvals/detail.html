@@ -382,9 +382,10 @@
           <h1>품 의 서</h1>
         </div>
         <div class="date-row">
-          <input type="text"
-                 value="{{ approval.doc_date|default_if_none:approval.created_at|date:'Y-m-d' }}"
-                 readonly>
+          <span class="date-label">일자</span>
+          <span class="date-text">
+            {{ approval.created_at|date:"Y-m-d H:i" }}
+          </span>
         </div>
       </div>
 
