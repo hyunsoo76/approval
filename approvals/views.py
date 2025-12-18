@@ -56,8 +56,8 @@ def approval_create(request):
         dept    = request.POST.get("department", "")
         name    = request.POST.get("name", "")
         title   = request.POST.get("title", "")
-        content = request.POST.get("content", "")
-        content = "\n".join(line.lstrip() for line in content.splitlines())
+        content = request.POST.get("content", "").replace("\r\n", "\n")
+        # content = "\n".join(line.lstrip() for line in content.splitlines())
         # doc_date 는 지금은 DB에 안 넣고, 나중에 필요하면 필드 추가
         content = html.unescape(content)
 
