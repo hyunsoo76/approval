@@ -2,8 +2,8 @@ import os
 import requests
 
 def send_telegram(text: str) -> None:
-    token = os.environ.get("TELEGRAM_BOT_TOKEN")
-    chat_id = os.environ.get("TELEGRAM_CHAT_ID")
+    token = os.environ.get("6817288295:AAH5EugUOcgdOMIkRnYG7mVE2TlUEfHFqBE")
+    chat_id = os.environ.get("6954609314")
 
     if not token or not chat_id:
         return
