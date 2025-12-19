@@ -2,6 +2,8 @@ import base64
 import uuid
 import os
 import html 
+from django.db import transaction
+from .utils.telegram import send_telegram
 from django.conf import settings
 from django.shortcuts import render, get_object_or_404, redirect
 from .models import ApprovalRequest
@@ -15,6 +17,7 @@ from django.conf import settings
 from django.shortcuts import render, redirect, get_object_or_404
 
 from .models import ApprovalRequest
+
 
 
 def _save_signature_from_dataurl(data_url: str):
@@ -143,6 +146,17 @@ def approval_detail(request, pk):
             approval.approved_device = _summarize_device(request.META.get("HTTP_USER_AGENT", ""))
 
             approval.save()
+
+            def _notify():
+                    send_telegram(
+                        "✅ 결재 서명 적용 완료\n"
+                        f"- 제목: {approval.title}\n"
+                        f"- 부서: {approval.department}\n"
+                        f"- 기안자: {approval.name}\n"
+                        f"- 문서ID: {approval.pk}\n"
+                        f"- 결재시각: {approval.approved_at.strftime('%Y-%m-%d %H:%M:%S')}"
+                    )
+            transaction.on_commit(_notify)   
 
         return redirect("approvals:detail", pk=approval.pk)
 
