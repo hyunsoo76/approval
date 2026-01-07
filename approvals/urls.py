@@ -8,5 +8,6 @@ urlpatterns = [
     path('', views.approval_list, name='list'),       # /approval/
     path('new/', views.approval_create, name='new'),     # /approval/new/
     path('<int:pk>/', views.approval_detail, name='detail'),  # /approval/7/
+    path("", views.list, name="root"),
 ]
 
