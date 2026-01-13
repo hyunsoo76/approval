@@ -6,8 +6,8 @@ app_name = 'approvals'   # ✨ 이게 있어야 'approvals:new' 같은 이름을
 
 urlpatterns = [
     path('', views.approval_list, name='list'),       # /approval/
-    path('approval/new/', views.approval_create, name='new'),     # /approval/new/
-    path('approval/<int:pk>/', views.approval_detail, name='detail'),  # /approval/7/
+    path('new/', views.approval_create, name='new'),     # /approval/new/
+    path('<int:pk>/', views.approval_detail, name='detail'),  # /approval/7/
     # path("", views.list, name="root"),
 ]
 
