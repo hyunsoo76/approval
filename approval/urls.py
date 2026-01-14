@@ -5,7 +5,7 @@ from django.conf.urls.static import static
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('approval/', include('approvals.urls')),  # approvals/urls.py의 ''가 루트가 됨
+    path('', include('approvals.urls')),  # approvals/urls.py의 ''가 루트가 됨
 ]
 
 # 개발용. 운영에서는 nginx가 media/static 처리
