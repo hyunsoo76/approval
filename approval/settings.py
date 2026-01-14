@@ -128,3 +128,4 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 FORCE_SCRIPT_NAME = "/approval"
 USE_X_FORWARDED_HOST = True
+LOGIN_URL = "/approval/admin/login/"
