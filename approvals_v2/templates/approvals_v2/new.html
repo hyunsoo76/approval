@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>품의 작성 (v2)</title>
+  <style>
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,"Noto Sans KR",sans-serif; margin:24px;}
+    .box{max-width:720px; margin:0 auto;}
+    label{display:block; font-weight:700; margin:14px 0 6px;}
+    input, select, textarea{width:100%; padding:10px; border:1px solid #ddd; border-radius:10px; font-size:16px;}
+    textarea{min-height:220px;}
+    .row{display:flex; gap:12px;}
+    .row > div{flex:1;}
+    .btn{margin-top:18px; width:100%; padding:12px; border:0; border-radius:12px; font-size:16px; font-weight:800; cursor:pointer;}
+  </style>
+</head>
+<body>
+  <div class="box">
+    <h1>품의 작성 (v2)</h1>
+
+    <form method="post">
+      {% csrf_token %}
+
+      <label>결재 템플릿</label>
+      <select name="template_code" required>
+        <option value="ADMIN_FINAL">총무전결 (담당 → 총무 전결)</option>
+        <option value="NORMAL">일반품의 (담당 → 총무 → 회장)</option>
+        <option value="ADMIN_TO_CHAIR">총무품의 (총무 → 회장)</option>
+      </select>
+
+      <div class="row">
+        <div>
+          <label>부서</label>
+          <input name="department" placeholder="예: (주)대진산업" required />
+        </div>
+        <div>
+          <label>기안자</label>
+          <input name="name" placeholder="예: 정현수" required />
+        </div>
+      </div>
+
+      <label>제목</label>
+      <input name="title" placeholder="제목을 입력하세요" required />
+
+      <label>내용</label>
+      <textarea name="content" placeholder="내용을 입력하세요" required></textarea>
+
+      <button class="btn" type="submit">상신하기</button>
+    </form>
+  </div>
+</body>
+</html>

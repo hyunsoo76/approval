@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>상신 완료</title>
+  <style>
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,"Noto Sans KR",sans-serif; margin:24px;}
+    .box{max-width:720px; margin:0 auto;}
+    a{display:inline-block; margin-top:12px;}
+  </style>
+</head>
+<body>
+  <div class="box">
+    <h1>상신 완료 ✅</h1>
+    <p>문서 ID: <b>{{ approval.id }}</b></p>
+    <p>템플릿: <b>{{ route.template_code }}</b></p>
+    <p>현재 단계: <b>{{ route.current_order }}</b></p>
+
+    <a href="/approval/v2/new/">새 품의 작성</a>
+    <a href="/approval/v2/{{ approval.id }}/">상세/결재 화면으로 이동</a>
+  </div>
+</body>
+</html>

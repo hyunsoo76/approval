@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>품의 상세 (v2)</title>
+  <style>
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,"Noto Sans KR",sans-serif; margin:24px;}
+    .box{max-width:820px; margin:0 auto;}
+    .meta{color:#666; font-size:14px; margin-top:6px;}
+    .card{border:1px solid #eee; border-radius:14px; padding:14px; margin-top:12px;}
+    .steps{display:grid; gap:8px; margin-top:10px;}
+    .step{display:flex; justify-content:space-between; border:1px solid #eee; border-radius:12px; padding:10px;}
+    .badge{font-weight:800;}
+    pre{white-space:pre-wrap;}
+  </style>
+</head>
+<body>
+  <div class="box">
+    <h1>{{ approval.title }}</h1>
+    <div class="meta">부서: {{ approval.department }} · 기안자: {{ approval.name }} · id={{ approval.id }}</div>
+
+    <div class="card">
+      <div class="badge">결재 상태</div>
+      <div class="meta">template={{ route.template_code }} · status={{ route.status }} · current_order={{ route.current_order }}</div>
+
+      <div class="steps">
+        {% for s in steps %}
+          <div class="step">
+            <div>#{{ s.order }} ({{ s.role }})</div>
+            <div><b>{{ s.state }}</b></div>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <form method="post" action="/approval/v2/{{ approval.id }}/approve/" style="margin-top:12px;">
+        {% csrf_token %}
+        <button type="submit" style="padding:10px 14px; border-radius:12px; border:1px solid #ddd; font-weight:800; cursor:pointer;">
+            승인
+        </button>
+    </form>
+    
+    <div class="card">
+      <div class="badge">내용</div>
+      <pre>{{ approval.content }}</pre>
+    </div>
+
+    <a href="/approval/v2/new/">새 품의 작성</a>
+  </div>
+</body>
+</html>

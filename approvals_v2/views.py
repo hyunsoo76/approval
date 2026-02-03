@@ -5,38 +5,105 @@ from approvals_v2.routes import approve_current_step
 from approvals_v2.notifications import dispatch_notifications
 from django.conf import settings
 from django.http import Http404
-
+from django.shortcuts import render
+from approvals_v2.routes import build_route_for_approval
+from django.shortcuts import redirect
+from approvals_v2.routes import approve_current_step, get_current_actor_role
 
 def v2_list(request):
     return HttpResponse("approval v2: list")
 
 
 def v2_new(request):
-    cases = [
-        ("NORMAL", "approve", ""),  # actor_role 없으면 group False 기대
-        ("NORMAL", "approve", "admin"),
-        ("NORMAL", "approve", "chairman"),
-    ]
+    if request.method == "GET":
+        return render(request, "approvals_v2/new.html")
 
-    lines = []
-    for template_code, event, actor_role in cases:
-        result = dispatch_notifications(
-            template_code=template_code,
-            event=event,
-            actor_role=actor_role,
-            drafter_name="정현수",
-            drafter_department="(주)대진산업",
-            text=f"(테스트) NORMAL approve actor_role={actor_role or 'EMPTY'}",
-        )
-        print("✅", template_code, event, actor_role, result)
-        lines.append(f"{template_code}/{event}/{actor_role or 'EMPTY'} -> {result}")
+    # POST
+    template_code = (request.POST.get("template_code") or "").strip()
+    department = (request.POST.get("department") or "").strip()
+    name = (request.POST.get("name") or "").strip()
+    title = (request.POST.get("title") or "").strip()
+    content = (request.POST.get("content") or "").strip()
 
-    return HttpResponse("<br>".join(lines))
+    if not all([template_code, department, name, title, content]):
+        return HttpResponse("필수값 누락", status=400)
+
+    # 1) ApprovalRequest 생성(v1 모델 재사용)
+    approval = ApprovalRequest.objects.create(
+        department=department,
+        name=name,
+        title=title,
+        content=content,
+        submit_ip=request.META.get("REMOTE_ADDR", ""),
+    )
+
+    # 2) route/steps 생성
+    route = build_route_for_approval(approval=approval, template_code=template_code)
+
+    # 3) 상신 알림(정책 적용)
+    # - ADMIN_FINAL: 총무 DM만
+    # - NORMAL: 총무 DM만
+    # - ADMIN_TO_CHAIR: (일단) 단톡방/DM 정책은 라우터 기본값에 따름 (추후 확정)
+    dispatch_notifications(
+        template_code=route.template_code,
+        event="submit",
+        actor_role="",  # submit은 actor 구분 불필요
+        drafter_name=approval.name,
+        drafter_department=approval.department,
+        text=f"(v2) 상신: [{approval.department}] {approval.title} (id={approval.id})",
+    )
+
+    return render(request, "approvals_v2/created.html", {"approval": approval, "route": route})
+
+
 
 
 
 def v2_detail(request, pk: int):
-    return HttpResponse(f"approval v2: detail {pk}")
+    a = ApprovalRequest.objects.get(pk=pk)
+    route = a.route_v2
+    steps = list(route.steps.order_by("order").values("order", "role", "state"))
+
+    return render(
+        request,
+        "approvals_v2/detail.html",
+        {"approval": a, "route": route, "steps": steps},
+    )
+
+def v2_approve(request, pk: int):
+    if request.method != "POST":
+        return HttpResponse("Method not allowed", status=405)
+
+    a = ApprovalRequest.objects.get(pk=pk)
+    route = a.route_v2
+
+    # 승인 처리
+    step = approve_current_step(
+        route=route,
+        acted_ip=request.META.get("REMOTE_ADDR", ""),
+        acted_device=(request.META.get("HTTP_USER_AGENT", "")[:50]),
+        acted_anon_id=request.COOKIES.get("anon_id", ""),
+    )
+
+        # 승인 알림: 정책상 '결재자' 승인 때만 보냄 (drafter 단계는 알림 없음)
+    should_notify = False
+    if route.template_code == "ADMIN_FINAL":
+        should_notify = (step.role == "admin")  # 최종 승인만
+    elif route.template_code in ("NORMAL", "ADMIN_TO_CHAIR"):
+        should_notify = (step.role in ("admin", "chairman"))
+
+    if should_notify:
+        dispatch_notifications(
+            template_code=route.template_code,
+            event="approve",
+            actor_role=step.role,
+            drafter_name=a.name,
+            drafter_department=a.department,
+            text=f"(v2) 승인: [{a.department}] {a.title} (id={a.id}) actor={step.role}",
+        )
+
+
+    return redirect(f"/approval/v2/{a.id}/")
 
 
 def v2_test_approve_and_notify(request, pk: int):
