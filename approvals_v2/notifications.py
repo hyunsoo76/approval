@@ -31,6 +31,7 @@ def route_telegram_notifications(
     event: str,
     drafter_name: str,
     drafter_department: str,
+    actor_role: str = "",
 ) -> dict:
     """
     알림을 '누구에게 보낼지'만 결정한다. (실제 발송 X)
@@ -70,9 +71,14 @@ def route_telegram_notifications(
         if event == "submit":
             return {"dm_roles": [TelegramRecipient.ROLE_ADMIN], "dm_drafter": False, "group": False}
         if event == "approve":
-            # NORMAL에서 approve는 단계에 따라 group이 나뉘지만,
-            # 다음 단계 연결에서 "총무 승인"인지 "회장 승인"인지 판단 후 group=True로 보낸다.
-            return {"dm_roles": [], "dm_drafter": False, "group": True}
+            # NORMAL에서 승인 알림 정책(확정):
+            # - 총무 승인(다음=회장): 단톡방 O
+            # - 회장 승인(최종): 단톡방 O
+            # 지금은 둘 다 단톡방 O이지만, actor_role로 구분 가능하게 열어둔다.
+            if actor_role in (TelegramRecipient.ROLE_ADMIN, TelegramRecipient.ROLE_CHAIRMAN):
+                return {"dm_roles": [], "dm_drafter": False, "group": True}
+            return {"dm_roles": [], "dm_drafter": False, "group": False}
+
         if event == "reject":
             return {"dm_roles": [], "dm_drafter": True, "group": False}
 
@@ -97,6 +103,7 @@ def dispatch_notifications(
     drafter_name: str,
     drafter_department: str,
     text: str,
+    actor_role: str = "",
 ) -> dict:
     """
     라우터 결과를 기반으로 실제 발송(현재는 stub print)을 수행한다.
@@ -107,6 +114,7 @@ def dispatch_notifications(
         event=event,
         drafter_name=drafter_name,
         drafter_department=drafter_department,
+        actor_role=actor_role,
     )
 
     sent = {"dm": [], "group": False, "routing": routing}
