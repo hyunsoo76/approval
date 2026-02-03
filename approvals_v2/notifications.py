@@ -86,3 +86,53 @@ def route_telegram_notifications(
 
     # 기본값: 조용히(로그만) — 운영 정책에 맞춰 조정 가능
     return {"dm_roles": [], "dm_drafter": False, "group": False}
+
+from .telegram import send_dm, send_group
+
+
+def dispatch_notifications(
+    *,
+    template_code: str,
+    event: str,
+    drafter_name: str,
+    drafter_department: str,
+    text: str,
+) -> dict:
+    """
+    라우터 결과를 기반으로 실제 발송(현재는 stub print)을 수행한다.
+    return: 실행 결과 요약(dict)
+    """
+    routing = route_telegram_notifications(
+        template_code=template_code,
+        event=event,
+        drafter_name=drafter_name,
+        drafter_department=drafter_department,
+    )
+
+    sent = {"dm": [], "group": False, "routing": routing}
+
+    # 1) role 기반 DM (총무/회장 등)
+    for role in routing.get("dm_roles", []):
+        recipients = get_active_recipients(role)
+        for r in recipients:
+            ok = send_dm(r.chat_id, text)
+            sent["dm"].append({"role": role, "chat_id": r.chat_id, "ok": ok})
+
+    # 2) 담당(기안자) DM
+    if routing.get("dm_drafter"):
+        drafters = get_active_recipients(
+            TelegramRecipient.ROLE_DRAFTER,
+            name=drafter_name,
+            department=drafter_department,
+        )
+        for r in drafters:
+            ok = send_dm(r.chat_id, text)
+            sent["dm"].append({"role": "drafter", "chat_id": r.chat_id, "ok": ok})
+
+    # 3) 단톡방
+    if routing.get("group"):
+        ok = send_group(text)
+        sent["group"] = ok
+
+    return sent
+
