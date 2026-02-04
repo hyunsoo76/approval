@@ -33,14 +33,28 @@
         {% endfor %}
       </div>
     </div>
-
-    <form method="post" action="/approval/v2/{{ approval.id }}/approve/" style="margin-top:12px;">
+    {% if route.status != "rejected" and route.status != "completed" and actor_role != "drafter" %}
+      <form method="post" action="/approval/v2/{{ approval.id }}/approve/" style="margin-top:12px;">
+          {% csrf_token %}
+          <button type="submit" style="padding:10px 14px; border-radius:12px; border:1px solid #ddd; font-weight:800; cursor:pointer;">
+              승인
+          </button>
+      </form>
+      
+      <form method="post" action="/approval/v2/{{ approval.id }}/reject/" style="margin-top:10px;">
         {% csrf_token %}
+        <input name="reason" placeholder="반려 사유" required style="width:100%; padding:10px; border:1px solid #ddd; border-radius:12px; margin-bottom:8px;" />
         <button type="submit" style="padding:10px 14px; border-radius:12px; border:1px solid #ddd; font-weight:800; cursor:pointer;">
-            승인
+          반려
         </button>
-    </form>
-    
+      </form>
+    {% else %}
+        <div class="card" style="margin-top:12px;">
+          <b>결재 버튼 비활성</b>
+          <div class="meta">현재 단계: {{ actor_role }} / 상태: {{ route.status }}</div>
+        </div>
+    {% endif %}  
+
     <div class="card">
       <div class="badge">내용</div>
       <pre>{{ approval.content }}</pre>
