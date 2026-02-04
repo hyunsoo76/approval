@@ -11,17 +11,11 @@ def get_active_recipients(role: str, *, name: str = "", department: str = "") ->
     qs = TelegramRecipient.objects.filter(role=role, is_active=True)
 
     if role == TelegramRecipient.ROLE_DRAFTER:
-        if department and name:
-            exact = qs.filter(department=department, name=name)
-            if exact.exists():
-                return list(exact)
-
+        # 운영 확정: drafter는 name만으로 매칭
         if name:
-            by_name = qs.filter(name=name)
-            if by_name.exists():
-                return list(by_name)
-
+            return list(qs.filter(name=name))
         return []
+
 
     return list(qs)
 
@@ -80,7 +74,11 @@ def route_telegram_notifications(
             return {"dm_roles": [], "dm_drafter": False, "group": False}
 
         if event == "reject":
+            # 확정: 총무가 반려 -> 담당 DM / 회장이 반려 -> 단톡방
+            if actor_role == TelegramRecipient.ROLE_CHAIRMAN:
+                return {"dm_roles": [], "dm_drafter": False, "group": True}
             return {"dm_roles": [], "dm_drafter": True, "group": False}
+
 
     if template_code == ADMIN_TO_CHAIR:
         if event == "submit":
@@ -88,7 +86,11 @@ def route_telegram_notifications(
         if event == "approve":
             return {"dm_roles": [], "dm_drafter": False, "group": True}
         if event == "reject":
+            # 확정: 회장이 반려하면 단톡방
+            if actor_role == TelegramRecipient.ROLE_CHAIRMAN:
+                return {"dm_roles": [], "dm_drafter": False, "group": True}
             return {"dm_roles": [], "dm_drafter": True, "group": False}
+
 
     # 기본값: 조용히(로그만) — 운영 정책에 맞춰 조정 가능
     return {"dm_roles": [], "dm_drafter": False, "group": False}

@@ -99,6 +99,8 @@ class ApprovalRouteStepInstance(models.Model):
     acted_ip = models.GenericIPAddressField(null=True, blank=True)
     acted_device = models.CharField(max_length=50, blank=True, default="")
     acted_anon_id = models.CharField(max_length=50, blank=True, default="")
+    reject_reason = models.TextField(blank=True, default="")
+
 
     class Meta:
         unique_together = [("route", "order")]
