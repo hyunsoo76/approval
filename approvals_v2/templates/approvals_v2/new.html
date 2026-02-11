@@ -1,53 +1,363 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>품의 작성 (v2)</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>품의서 작성(v2)</title>
   <style>
-    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,"Noto Sans KR",sans-serif; margin:24px;}
-    .box{max-width:720px; margin:0 auto;}
-    label{display:block; font-weight:700; margin:14px 0 6px;}
-    input, select, textarea{width:100%; padding:10px; border:1px solid #ddd; border-radius:10px; font-size:16px;}
-    textarea{min-height:220px;}
-    .row{display:flex; gap:12px;}
-    .row > div{flex:1;}
-    .btn{margin-top:18px; width:100%; padding:12px; border:0; border-radius:12px; font-size:16px; font-weight:800; cursor:pointer;}
+    body{font-family:-apple-system,BlinkMacSystemFont,"맑은 고딕",sans-serif;margin:20px;}
+    .paper{width:100%;max-width:900px;border:1px solid #000;padding:20px;box-sizing:border-box;margin:0 auto;background:#fff;}
+
+    .header-wrapper{display:flex;align-items:flex-start;justify-content:center;margin-bottom:10px;}
+    .header-left{flex:1;text-align:center;}
+    .title-row h1{margin:0;font-size:36px;letter-spacing:0.4em;}
+    .date-row{margin:10px 0 20px 0;font-size:16px;}
+    .date-row .date-text{display:inline-block;min-width:160px;padding-bottom:2px;border-bottom:1px solid #000;font-size:14px;color:#444;}
+
+    .sign-table{margin-left:auto;border-collapse:collapse;border:1px solid #000;font-size:14px;background:#fff;}
+    .sign-table th,.sign-table td{border:1px solid #000;width:80px;height:40px;text-align:center;vertical-align:middle;}
+    .sign-box{width:80px;height:80px;position:relative;}
+    .sign-box-inner{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:12px;color:#666;text-align:center;}
+
+    .info-table,.subject-table,.content-table{width:100%;border-collapse:collapse;table-layout:fixed;margin-bottom:10px;}
+    .info-table th,.info-table td,.subject-table th,.subject-table td,.content-table th,.content-table td{border:1px solid #000;padding:6px;font-size:14px;}
+    .info-table th,.subject-table th,.content-table th{width:80px;text-align:center;background-color:#f8f8f8;}
+    .content-table td{height:420px;vertical-align:top;}
+
+    input[type="text"], select, textarea{
+      width:100%; box-sizing:border-box;
+      border:none; outline:none;
+      font-size:14px; background:transparent;
+    }
+    textarea{height:100%; resize:none; white-space:pre-wrap; word-break:break-word;}
+
+    .btn-row{margin-top:18px;text-align:center;display:flex;gap:10px;justify-content:center;flex-wrap:wrap;}
+    .btn{padding:10px 18px;font-size:14px;cursor:pointer;border:1px solid #555;border-radius:6px;background:#eee;}
+    .btn.primary{background:#1f6feb;color:#fff;border-color:#1f6feb;}
+    .hint{font-size:13px;color:#444;margin-top:10px;}
+
+    @media (max-width:600px){
+      body{margin:10px;font-size:13px;}
+      .paper{padding:10px;}
+      .header-wrapper{flex-direction:column;align-items:stretch;}
+      .header-left{margin-bottom:10px;}
+      .title-row h1{font-size:28px;letter-spacing:0.25em;}
+      .date-row{margin:8px 0 12px 0;font-size:14px;}
+      .sign-table{align-self:flex-end;}
+      .sign-table th,.sign-table td{width:70px;height:36px;font-size:12px;}
+      .sign-box{width:70px;height:70px;}
+      .sign-box-inner{font-size:11px;}
+      .info-table th,.subject-table th,.content-table th{width:70px;}
+      .content-table td{height:280px;}
+    }
   </style>
 </head>
 <body>
-  <div class="box">
-    <h1>품의 작성 (v2)</h1>
+<div class="paper">
 
-    <form method="post">
-      {% csrf_token %}
+  <form method="post" action="/approval/v2/new/" enctype="multipart/form-data">
+    {% csrf_token %}
 
-      <label>결재 템플릿</label>
-      <select name="template_code" required>
-        <option value="ADMIN_FINAL">총무전결 (담당 → 총무 전결)</option>
-        <option value="NORMAL">일반품의 (담당 → 총무 → 회장)</option>
-        <option value="ADMIN_TO_CHAIR">총무품의 (총무 → 회장)</option>
-      </select>
-
-      <div class="row">
-        <div>
-          <label>부서</label>
-          <input name="department" placeholder="예: (주)대진산업" required />
-        </div>
-        <div>
-          <label>기안자</label>
-          <input name="name" placeholder="예: 정현수" required />
+    <!-- ===== 헤더 (제목 + 날짜 + 결재란) ===== -->
+    <div class="header-wrapper">
+      <div class="header-left">
+        <div class="title-row"><h1>품 의 서</h1></div>
+        <div class="date-row">
+          <span class="date-text">작성일: {{ now|default:"-" }}</span>
         </div>
       </div>
 
-      <label>제목</label>
-      <input name="title" placeholder="제목을 입력하세요" required />
+      <!-- 작성 단계에서는 '도장'을 찍지 않음(상신 후 결재 단계에서 처리) -->
+      <table class="sign-table" id="signTable">
+        <tr id="signHead"></tr>
+        <tr id="signBody"></tr>
+      </table>
+    </div>
 
-      <label>내용</label>
-      <textarea name="content" placeholder="내용을 입력하세요" required></textarea>
+    <!-- ===== 템플릿 선택 ===== -->
+    <table class="info-table">
+      <tr>
+        <th style="width:80px;">결재선</th>
+        <td colspan="3">
+          <select name="template_code" id="template_code" required>
+            <option value="">선택</option>
+            <option value="ADMIN_FINAL">총무전결(담당→총무)</option>
+            <option value="NORMAL">일반품의(담당→총무→회장)</option>
+            <option value="ADMIN_TO_CHAIR">총무품의(총무→회장)</option>
+          </select>
+        </td>
+      </tr>
+      <tr>
+        <th>소속</th>
+        <td><input type="text" name="department" id="deptInput" placeholder="예: (주)대진산업" required></td>
+        <th>성명</th>
+        <td>
+          <!-- ✅ id 추가: JS로 옵션 교체 -->
+          <select class="form-select" name="name" id="nameSelect" required>
+            <option value="" selected disabled>선택 (이름 없으면 등록요청)</option>
+          </select>
+          <div id="nameHint" style="margin-top:4px; font-size:12px; color:#666; display:none;"></div>
+        </td>
+      </tr>
+    </table>
 
-      <button class="btn" type="submit">상신하기</button>
-    </form>
-  </div>
+    <!-- ===== 제목 ===== -->
+    <table class="subject-table">
+      <tr>
+        <th>제목</th>
+        <td><input type="text" name="title" placeholder="제목을 입력하세요" required></td>
+      </tr>
+    </table>
+
+    <!-- ===== 내용 ===== -->
+      <table class="content-table">
+        <tr>
+          <th>내용</th>
+          <td>
+            <div id="contentEditor"
+                contenteditable="true"
+                style="min-height:100%; padding:8px; outline:none; white-space:pre-wrap; word-break:break-word;">
+            </div>
+            <input type="hidden" name="content" id="contentHidden" required>
+          </td>
+        </tr>
+      </table>
+    <!-- ===== 첨부 ===== -->
+    <table class="info-table" style="margin-top:-1px;">
+      <tr>
+        <th style="width:80px;">첨부</th>
+        <td colspan="3">
+          <input type="file" id="attachmentsInput" name="attachments" multiple style="display:none;">
+          <button type="button" class="btn" id="addFilesBtn">파일 추가</button>
+          <div id="fileList" style="margin-top:6px; font-size:13px; color:#333;"></div>
+          <div style="font-size:12px; color:#666; margin-top:4px;">
+            여러 파일을 추가하려면 “파일 추가”를 여러 번 눌러도 됩니다.
+          </div>
+
+          <div style="font-size:12px; color:#666; margin-top:4px;">여러 파일 첨부 가능</div>
+        </td>
+      </tr>
+    </table>
+  
+
+
+    <div class="hint">
+      ✅ 내용 작성란에 이미지 붙여넣기 가능, 상신하면 바로 상세 화면으로 이동합니다.
+    </div>
+
+    <div class="btn-row">
+      <button class="btn primary" type="submit">상신</button>
+      <a class="btn" href="/approval/v2/">리스트</a>
+    </div>
+  </form>
+
+</div>
+
+{{ drafters|json_script:"drafters-data" }}
+{{ admins|json_script:"admins-data" }}
+
+
+<script>
+  // ===== 결재선 선택에 따라 결재란 칸 자동 표시(작성용 UI) =====
+  const tpl = document.getElementById("template_code");
+  const head = document.getElementById("signHead");
+  const body = document.getElementById("signBody");
+
+  function renderSign(cols){
+    head.innerHTML = "";
+    body.innerHTML = "";
+    cols.forEach(c=>{
+      const th = document.createElement("th");
+      th.textContent = c;
+      head.appendChild(th);
+
+      const td = document.createElement("td");
+      td.innerHTML = '<div class="sign-box"><div class="sign-box-inner">상신 후 처리</div></div>';
+      body.appendChild(td);
+    });
+  }
+
+  function onTpl(){
+    const v = tpl.value;
+    if(v === "ADMIN_FINAL") renderSign(["기안","총무"]);
+    else if(v === "NORMAL") renderSign(["기안","총무","회장"]);
+    else if(v === "ADMIN_TO_CHAIR") renderSign(["총무","회장"]);
+    else renderSign(["-"]);
+
+    syncNameOptions(); // ✅ 결재선 바뀌면 성명 옵션도 동기화
+  }
+
+  tpl.addEventListener("change", onTpl);
+
+  // ===== ✅ 성명 옵션: 결재선에 따라 (담당만 / 총무만) =====
+  // views.py에서 내려주는 데이터 사용
+  const DRAFTERS = JSON.parse(
+      document.getElementById("drafters-data").textContent
+    );
+    const ADMINS = JSON.parse(
+      document.getElementById("admins-data").textContent
+    );
+
+  const ADMIN_NAME = "{{ admin_name|default:'' }}";
+
+  const nameSelect = document.getElementById("nameSelect");
+  const nameHint = document.getElementById("nameHint");
+
+  function setNameOptions(list, autoSelectName){
+    nameSelect.innerHTML = "";
+
+    // 안내 옵션
+    const ph = document.createElement("option");
+    ph.value = "";
+    ph.disabled = true;
+    ph.selected = true;
+    ph.textContent = "선택 (이름 없으면 등록요청)";
+    nameSelect.appendChild(ph);
+
+    list.forEach(u => {
+      const opt = document.createElement("option");
+      opt.value = u.name;
+      opt.textContent = u.name;
+      nameSelect.appendChild(opt);
+    });
+
+    // 자동 선택(ADMIN_TO_CHAIR일 때 총무 자동 선택)
+    if (autoSelectName) {
+      for (const opt of nameSelect.options) {
+        if (opt.value === autoSelectName) {
+          opt.selected = true;
+          break;
+        }
+      }
+    }
+  }
+
+  const deptInput = document.getElementById("deptInput");
+  const DEFAULT_ADMIN_DEPT = "(주)새진";
+
+  function syncNameOptions(){
+    const v = tpl.value;
+
+    if (v === "ADMIN_TO_CHAIR") {
+      // ✅ 총무만 + 자동 선택
+      setNameOptions(ADMINS, ADMIN_NAME || (ADMINS[0] ? ADMINS[0].name : ""));
+      nameHint.style.display = "block";
+      // nameHint.textContent = "총무품의는 성명이 총무로 자동 선택됩니다.";
+      // ✅ 소속 자동 입력(비어있거나 기본값이 아닐 때만 덮어쓸지 선택 가능)
+      if (deptInput && !deptInput.value.trim()) {
+        deptInput.value = DEFAULT_ADMIN_DEPT;
+      }
+
+    } else if (v === "ADMIN_FINAL" || v === "NORMAL") {
+      // ✅ 담당만
+      setNameOptions(DRAFTERS, "");
+      nameHint.style.display = "none";
+      nameHint.textContent = "";
+    } else {
+      // 결재선 선택 전
+      setNameOptions(DRAFTERS, "");
+      nameHint.style.display = "none";
+      nameHint.textContent = "";
+    }
+  }
+
+  // 초기 렌더
+  onTpl();
+
+
+// ✅ contenteditable -> hidden input으로 제출
+  const form = document.querySelector('form[action="/approval/v2/new/"]');
+  const editor = document.getElementById("contentEditor");
+  const hidden = document.getElementById("contentHidden");
+
+  if (form && editor && hidden) {
+    form.addEventListener("submit", () => {
+      hidden.value = editor.innerHTML.trim();
+    });
+
+    // ✅ 이미지 붙여넣기 처리(스크린샷 포함)
+    editor.addEventListener("paste", async (e) => {
+      const items = (e.clipboardData || window.clipboardData)?.items || [];
+      for (const item of items) {
+        if (item.type && item.type.startsWith("image/")) {
+          e.preventDefault();
+          const file = item.getAsFile();
+          if (!file) return;
+
+          const dataUrl = await new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.readAsDataURL(file);
+          });
+
+          const img = document.createElement("img");
+          img.src = dataUrl;
+          img.style.maxWidth = "100%";
+          img.style.height = "auto";
+          img.style.display = "block";
+          img.style.margin = "6px 0";
+
+          // 커서 위치에 삽입
+          const sel = window.getSelection();
+          if (sel && sel.rangeCount) {
+            const range = sel.getRangeAt(0);
+            range.deleteContents();
+            range.insertNode(img);
+            range.setStartAfter(img);
+            range.setEndAfter(img);
+            sel.removeAllRanges();
+            sel.addRange(range);
+          } else {
+            editor.appendChild(img);
+          }
+          return;
+        }
+      }
+      // 이미지가 아닌 일반 텍스트 paste는 기본 동작 유지
+    });
+  }
+
+  // ✅ 첨부파일: 여러 번 선택해도 누적되게
+const attachmentsInput = document.getElementById("attachmentsInput");
+const addFilesBtn = document.getElementById("addFilesBtn");
+const fileList = document.getElementById("fileList");
+
+// 누적 파일 저장용
+let selectedFiles = [];
+
+function renderFileList(){
+  if (!fileList) return;
+  if (selectedFiles.length === 0) {
+    fileList.textContent = "선택된 파일 없음";
+    return;
+  }
+  fileList.innerHTML = selectedFiles
+    .map((f, idx) => `<div>${idx+1}. ${f.name} <span style="color:#888;">(${Math.round(f.size/1024)} KB)</span></div>`)
+    .join("");
+}
+
+function syncInputFiles(){
+  // FileList는 직접 수정 불가 → DataTransfer로 재구성
+  const dt = new DataTransfer();
+  selectedFiles.forEach(f => dt.items.add(f));
+  attachmentsInput.files = dt.files;
+}
+
+if (addFilesBtn && attachmentsInput) {
+  addFilesBtn.addEventListener("click", () => attachmentsInput.click());
+
+  attachmentsInput.addEventListener("change", () => {
+    const files = Array.from(attachmentsInput.files || []);
+    // 기존 + 새 파일 합치기(동일 이름 중복 허용/불허는 정책 선택)
+    selectedFiles = selectedFiles.concat(files);
+
+    syncInputFiles();
+    renderFileList();
+  });
+
+  renderFileList();
+}
+
+</script>
 </body>
 </html>

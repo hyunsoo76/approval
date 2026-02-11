@@ -1,5 +1,6 @@
 from django.db import models
 from django.conf import settings
+from approvals.models import ApprovalRequest
 
 class TelegramRecipient(models.Model):
     ROLE_DRAFTER = "drafter"
@@ -17,6 +18,8 @@ class TelegramRecipient(models.Model):
     department = models.CharField(max_length=50, blank=True, default="")
     chat_id = models.CharField(max_length=50)  # 텔레그램 chat_id (숫자/문자 모두 대비)
     is_active = models.BooleanField(default=True)
+    stamp_image = models.ImageField(upload_to="stamps/recipients/", blank=True, null=True)
+
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -100,6 +103,8 @@ class ApprovalRouteStepInstance(models.Model):
     acted_device = models.CharField(max_length=50, blank=True, default="")
     acted_anon_id = models.CharField(max_length=50, blank=True, default="")
     reject_reason = models.TextField(blank=True, default="")
+    stamp_image = models.ImageField(upload_to="stamps/steps/", blank=True, null=True)
+
 
 
     class Meta:
@@ -111,3 +116,16 @@ class ApprovalRouteStepInstance(models.Model):
 
     def __str__(self) -> str:
         return f"Step(order={self.order}, role={self.role}, state={self.state})"
+
+class ApprovalAttachment(models.Model):
+    approval = models.ForeignKey(
+        ApprovalRequest,
+        on_delete=models.CASCADE,
+        related_name="v2_attachments",
+    )
+    file = models.FileField(upload_to="approval_v2/attachments/%Y/%m/")
+    original_name = models.CharField(max_length=255, blank=True)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.original_name or self.file.name
