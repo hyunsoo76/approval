@@ -1,64 +1,63 @@
-<!DOCTYPE html>
-<html lang="ko">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>품의서 작성(v2)</title>
-  <style>
-    body{font-family:-apple-system,BlinkMacSystemFont,"맑은 고딕",sans-serif;margin:20px;}
-    .paper{width:100%;max-width:900px;border:1px solid #000;padding:20px;box-sizing:border-box;margin:0 auto;background:#fff;}
+{% extends "base.html" %}
 
-    .header-wrapper{display:flex;align-items:flex-start;justify-content:center;margin-bottom:10px;}
-    .header-left{flex:1;text-align:center;}
-    .title-row h1{margin:0;font-size:36px;letter-spacing:0.4em;}
-    .date-row{margin:10px 0 20px 0;font-size:16px;}
-    .date-row .date-text{display:inline-block;min-width:160px;padding-bottom:2px;border-bottom:1px solid #000;font-size:14px;color:#444;}
+{% block title %}품의서 작성(v2){% endblock %}
 
-    .sign-table{margin-left:auto;border-collapse:collapse;border:1px solid #000;font-size:14px;background:#fff;}
-    .sign-table th,.sign-table td{border:1px solid #000;width:80px;height:40px;text-align:center;vertical-align:middle;}
-    .sign-box{width:80px;height:80px;position:relative;}
-    .sign-box-inner{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:12px;color:#666;text-align:center;}
+{% block extra_head %}
+<style>
+  body{font-family:-apple-system,BlinkMacSystemFont,"맑은 고딕",sans-serif;margin:20px;}
+  .paper{width:100%;max-width:900px;border:1px solid #000;padding:20px;box-sizing:border-box;margin:0 auto;background:#fff;}
 
-    .info-table,.subject-table,.content-table{width:100%;border-collapse:collapse;table-layout:fixed;margin-bottom:10px;}
-    .info-table th,.info-table td,.subject-table th,.subject-table td,.content-table th,.content-table td{border:1px solid #000;padding:6px;font-size:14px;}
-    .info-table th,.subject-table th,.content-table th{width:80px;text-align:center;background-color:#f8f8f8;}
-    .content-table td{height:420px;vertical-align:top;}
+  .header-wrapper{display:flex;align-items:flex-start;justify-content:center;margin-bottom:10px;}
+  .header-left{flex:1;text-align:center;}
+  .title-row h1{margin:0;font-size:36px;letter-spacing:0.4em;}
+  .date-row{margin:10px 0 20px 0;font-size:16px;}
+  .date-row .date-text{display:inline-block;min-width:160px;padding-bottom:2px;border-bottom:1px solid #000;font-size:14px;color:#444;}
 
-    input[type="text"], select, textarea{
-      width:100%; box-sizing:border-box;
-      border:none; outline:none;
-      font-size:14px; background:transparent;
-    }
-    textarea{height:100%; resize:none; white-space:pre-wrap; word-break:break-word;}
+  .sign-table{margin-left:auto;border-collapse:collapse;border:1px solid #000;font-size:14px;background:#fff;}
+  .sign-table th,.sign-table td{border:1px solid #000;width:80px;height:40px;text-align:center;vertical-align:middle;}
+  .sign-box{width:80px;height:80px;position:relative;}
+  .sign-box-inner{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:12px;color:#666;text-align:center;}
 
-    .btn-row{margin-top:18px;text-align:center;display:flex;gap:10px;justify-content:center;flex-wrap:wrap;}
-    .btn{padding:10px 18px;font-size:14px;cursor:pointer;border:1px solid #555;border-radius:6px;background:#eee;}
-    .btn.primary{background:#1f6feb;color:#fff;border-color:#1f6feb;}
-    .hint{font-size:13px;color:#444;margin-top:10px;}
+  .info-table,.subject-table,.content-table{width:100%;border-collapse:collapse;table-layout:fixed;margin-bottom:10px;}
+  .info-table th,.info-table td,.subject-table th,.subject-table td,.content-table th,.content-table td{border:1px solid #000;padding:6px;font-size:14px;}
+  .info-table th,.subject-table th,.content-table th{width:80px;text-align:center;background-color:#f8f8f8;}
+  .content-table td{height:420px;vertical-align:top;}
 
-    @media (max-width:600px){
-      body{margin:10px;font-size:13px;}
-      .paper{padding:10px;}
-      .header-wrapper{flex-direction:column;align-items:stretch;}
-      .header-left{margin-bottom:10px;}
-      .title-row h1{font-size:28px;letter-spacing:0.25em;}
-      .date-row{margin:8px 0 12px 0;font-size:14px;}
-      .sign-table{align-self:flex-end;}
-      .sign-table th,.sign-table td{width:70px;height:36px;font-size:12px;}
-      .sign-box{width:70px;height:70px;}
-      .sign-box-inner{font-size:11px;}
-      .info-table th,.subject-table th,.content-table th{width:70px;}
-      .content-table td{height:280px;}
-    }
-  </style>
-</head>
-<body>
+  input[type="text"], select, textarea{
+    width:100%; box-sizing:border-box;
+    border:none; outline:none;
+    font-size:14px; background:transparent;
+  }
+  textarea{height:100%; resize:none; white-space:pre-wrap; word-break:break-word;}
+
+  .btn-row{margin-top:18px;text-align:center;display:flex;gap:10px;justify-content:center;flex-wrap:wrap;}
+  .btn{padding:10px 18px;font-size:14px;cursor:pointer;border:1px solid #555;border-radius:6px;background:#eee;}
+  .btn.primary{background:#1f6feb;color:#fff;border-color:#1f6feb;}
+  .hint{font-size:13px;color:#444;margin-top:10px;}
+
+  @media (max-width:600px){
+    body{margin:10px;font-size:13px;}
+    .paper{padding:10px;}
+    .header-wrapper{flex-direction:column;align-items:stretch;}
+    .header-left{margin-bottom:10px;}
+    .title-row h1{font-size:28px;letter-spacing:0.25em;}
+    .date-row{margin:8px 0 12px 0;font-size:14px;}
+    .sign-table{align-self:flex-end;}
+    .sign-table th,.sign-table td{width:70px;height:36px;font-size:12px;}
+    .sign-box{width:70px;height:70px;}
+    .sign-box-inner{font-size:11px;}
+    .info-table th,.subject-table th,.content-table th{width:70px;}
+    .content-table td{height:280px;}
+  }
+</style>
+{% endblock %}
+
+{% block content %}
 <div class="paper">
 
   <form method="post" action="/approval/v2/new/" enctype="multipart/form-data">
     {% csrf_token %}
 
-    <!-- ===== 헤더 (제목 + 날짜 + 결재란) ===== -->
     <div class="header-wrapper">
       <div class="header-left">
         <div class="title-row"><h1>품 의 서</h1></div>
@@ -67,14 +66,12 @@
         </div>
       </div>
 
-      <!-- 작성 단계에서는 '도장'을 찍지 않음(상신 후 결재 단계에서 처리) -->
       <table class="sign-table" id="signTable">
         <tr id="signHead"></tr>
         <tr id="signBody"></tr>
       </table>
     </div>
 
-    <!-- ===== 템플릿 선택 ===== -->
     <table class="info-table">
       <tr>
         <th style="width:80px;">결재선</th>
@@ -92,7 +89,6 @@
         <td><input type="text" name="department" id="deptInput" placeholder="예: (주)대진산업" required></td>
         <th>성명</th>
         <td>
-          <!-- ✅ id 추가: JS로 옵션 교체 -->
           <select class="form-select" name="name" id="nameSelect" required>
             <option value="" selected disabled>선택 (이름 없으면 등록요청)</option>
           </select>
@@ -101,7 +97,6 @@
       </tr>
     </table>
 
-    <!-- ===== 제목 ===== -->
     <table class="subject-table">
       <tr>
         <th>제목</th>
@@ -109,20 +104,19 @@
       </tr>
     </table>
 
-    <!-- ===== 내용 ===== -->
-      <table class="content-table">
-        <tr>
-          <th>내용</th>
-          <td>
-            <div id="contentEditor"
-                contenteditable="true"
-                style="min-height:100%; padding:8px; outline:none; white-space:pre-wrap; word-break:break-word;">
-            </div>
-            <input type="hidden" name="content" id="contentHidden" required>
-          </td>
-        </tr>
-      </table>
-    <!-- ===== 첨부 ===== -->
+    <table class="content-table">
+      <tr>
+        <th>내용</th>
+        <td>
+          <div id="contentEditor"
+               contenteditable="true"
+               style="min-height:100%; padding:8px; outline:none; white-space:pre-wrap; word-break:break-word;">
+          </div>
+          <input type="hidden" name="content" id="contentHidden" required>
+        </td>
+      </tr>
+    </table>
+
     <table class="info-table" style="margin-top:-1px;">
       <tr>
         <th style="width:80px;">첨부</th>
@@ -133,13 +127,9 @@
           <div style="font-size:12px; color:#666; margin-top:4px;">
             여러 파일을 추가하려면 “파일 추가”를 여러 번 눌러도 됩니다.
           </div>
-
-          <div style="font-size:12px; color:#666; margin-top:4px;">여러 파일 첨부 가능</div>
         </td>
       </tr>
     </table>
-  
-
 
     <div class="hint">
       ✅ 내용 작성란에 이미지 붙여넣기 가능, 상신하면 바로 상세 화면으로 이동합니다.
@@ -155,11 +145,11 @@
 
 {{ drafters|json_script:"drafters-data" }}
 {{ admins|json_script:"admins-data" }}
+{% endblock %}
 
-
+{% block extra_script %}
 <script>
-  // ===== 결재선 선택에 따라 결재란 칸 자동 표시(작성용 UI) =====
-  const tpl = document.getElementById("template_code");
+  const tpl  = document.getElementById("template_code");
   const head = document.getElementById("signHead");
   const body = document.getElementById("signBody");
 
@@ -183,30 +173,21 @@
     else if(v === "NORMAL") renderSign(["기안","총무","회장"]);
     else if(v === "ADMIN_TO_CHAIR") renderSign(["총무","회장"]);
     else renderSign(["-"]);
-
-    syncNameOptions(); // ✅ 결재선 바뀌면 성명 옵션도 동기화
+    syncNameOptions();
   }
-
   tpl.addEventListener("change", onTpl);
 
-  // ===== ✅ 성명 옵션: 결재선에 따라 (담당만 / 총무만) =====
-  // views.py에서 내려주는 데이터 사용
-  const DRAFTERS = JSON.parse(
-      document.getElementById("drafters-data").textContent
-    );
-    const ADMINS = JSON.parse(
-      document.getElementById("admins-data").textContent
-    );
+  const DRAFTERS = JSON.parse(document.getElementById("drafters-data").textContent);
+  const ADMINS   = JSON.parse(document.getElementById("admins-data").textContent);
 
   const ADMIN_NAME = "{{ admin_name|default:'' }}";
 
   const nameSelect = document.getElementById("nameSelect");
-  const nameHint = document.getElementById("nameHint");
+  const nameHint   = document.getElementById("nameHint");
 
   function setNameOptions(list, autoSelectName){
     nameSelect.innerHTML = "";
 
-    // 안내 옵션
     const ph = document.createElement("option");
     ph.value = "";
     ph.disabled = true;
@@ -221,7 +202,6 @@
       nameSelect.appendChild(opt);
     });
 
-    // 자동 선택(ADMIN_TO_CHAIR일 때 총무 자동 선택)
     if (autoSelectName) {
       for (const opt of nameSelect.options) {
         if (opt.value === autoSelectName) {
@@ -239,34 +219,27 @@
     const v = tpl.value;
 
     if (v === "ADMIN_TO_CHAIR") {
-      // ✅ 총무만 + 자동 선택
       setNameOptions(ADMINS, ADMIN_NAME || (ADMINS[0] ? ADMINS[0].name : ""));
       nameHint.style.display = "block";
-      // nameHint.textContent = "총무품의는 성명이 총무로 자동 선택됩니다.";
-      // ✅ 소속 자동 입력(비어있거나 기본값이 아닐 때만 덮어쓸지 선택 가능)
+
       if (deptInput && !deptInput.value.trim()) {
         deptInput.value = DEFAULT_ADMIN_DEPT;
       }
-
     } else if (v === "ADMIN_FINAL" || v === "NORMAL") {
-      // ✅ 담당만
       setNameOptions(DRAFTERS, "");
       nameHint.style.display = "none";
       nameHint.textContent = "";
     } else {
-      // 결재선 선택 전
       setNameOptions(DRAFTERS, "");
       nameHint.style.display = "none";
       nameHint.textContent = "";
     }
   }
 
-  // 초기 렌더
   onTpl();
 
-
-// ✅ contenteditable -> hidden input으로 제출
-  const form = document.querySelector('form[action="/approval/v2/new/"]');
+  // contenteditable -> hidden
+  const form   = document.querySelector('form[action="/approval/v2/new/"]');
   const editor = document.getElementById("contentEditor");
   const hidden = document.getElementById("contentHidden");
 
@@ -275,7 +248,6 @@
       hidden.value = editor.innerHTML.trim();
     });
 
-    // ✅ 이미지 붙여넣기 처리(스크린샷 포함)
     editor.addEventListener("paste", async (e) => {
       const items = (e.clipboardData || window.clipboardData)?.items || [];
       for (const item of items) {
@@ -297,7 +269,6 @@
           img.style.display = "block";
           img.style.margin = "6px 0";
 
-          // 커서 위치에 삽입
           const sel = window.getSelection();
           if (sel && sel.rangeCount) {
             const range = sel.getRangeAt(0);
@@ -313,51 +284,42 @@
           return;
         }
       }
-      // 이미지가 아닌 일반 텍스트 paste는 기본 동작 유지
     });
   }
 
-  // ✅ 첨부파일: 여러 번 선택해도 누적되게
-const attachmentsInput = document.getElementById("attachmentsInput");
-const addFilesBtn = document.getElementById("addFilesBtn");
-const fileList = document.getElementById("fileList");
+  // 첨부 누적
+  const attachmentsInput = document.getElementById("attachmentsInput");
+  const addFilesBtn = document.getElementById("addFilesBtn");
+  const fileList = document.getElementById("fileList");
 
-// 누적 파일 저장용
-let selectedFiles = [];
+  let selectedFiles = [];
 
-function renderFileList(){
-  if (!fileList) return;
-  if (selectedFiles.length === 0) {
-    fileList.textContent = "선택된 파일 없음";
-    return;
+  function renderFileList(){
+    if (!fileList) return;
+    if (selectedFiles.length === 0) {
+      fileList.textContent = "선택된 파일 없음";
+      return;
+    }
+    fileList.innerHTML = selectedFiles
+      .map((f, idx) => `<div>${idx+1}. ${f.name} <span style="color:#888;">(${Math.round(f.size/1024)} KB)</span></div>`)
+      .join("");
   }
-  fileList.innerHTML = selectedFiles
-    .map((f, idx) => `<div>${idx+1}. ${f.name} <span style="color:#888;">(${Math.round(f.size/1024)} KB)</span></div>`)
-    .join("");
-}
 
-function syncInputFiles(){
-  // FileList는 직접 수정 불가 → DataTransfer로 재구성
-  const dt = new DataTransfer();
-  selectedFiles.forEach(f => dt.items.add(f));
-  attachmentsInput.files = dt.files;
-}
+  function syncInputFiles(){
+    const dt = new DataTransfer();
+    selectedFiles.forEach(f => dt.items.add(f));
+    attachmentsInput.files = dt.files;
+  }
 
-if (addFilesBtn && attachmentsInput) {
-  addFilesBtn.addEventListener("click", () => attachmentsInput.click());
-
-  attachmentsInput.addEventListener("change", () => {
-    const files = Array.from(attachmentsInput.files || []);
-    // 기존 + 새 파일 합치기(동일 이름 중복 허용/불허는 정책 선택)
-    selectedFiles = selectedFiles.concat(files);
-
-    syncInputFiles();
+  if (addFilesBtn && attachmentsInput) {
+    addFilesBtn.addEventListener("click", () => attachmentsInput.click());
+    attachmentsInput.addEventListener("change", () => {
+      const files = Array.from(attachmentsInput.files || []);
+      selectedFiles = selectedFiles.concat(files);
+      syncInputFiles();
+      renderFileList();
+    });
     renderFileList();
-  });
-
-  renderFileList();
-}
-
+  }
 </script>
-</body>
-</html>
+{% endblock %}

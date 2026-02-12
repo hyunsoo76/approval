@@ -1,559 +1,539 @@
-<!DOCTYPE html>
-<html lang="ko">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>품의서 상세 - {{ approval.title }}</title>
+{% extends "base.html" %}
 {% load static %}
-  <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, "맑은 고딕", sans-serif; margin: 20px; }
-    .paper { width: 100%; max-width: 900px; border: 1px solid #000; padding: 20px; box-sizing: border-box; margin: 0 auto; background: #fff; }
-
-    .header-wrapper { display:flex; align-items:flex-start; justify-content:center; margin-bottom: 10px; gap: 12px; }
-    .header-left { flex:1; text-align:center; }
-    .title-row h1 { margin:0; font-size:36px; letter-spacing:0.4em; }
-    .date-row { text-align:center; margin:10px 0 20px 0; font-size:16px; }
-    .date-row .date-text { display:inline-block; min-width:160px; padding-bottom:2px; border-bottom:1px solid #000; font-size:14px; }
-
-    /* ===== 결재 테이블 ===== */
-    .sign-table{
-      margin-left:auto;
-      border-collapse:collapse;
-      border:1px solid #000;
-      background:#fff;
-      font-size:13px;
-      table-layout: fixed;
-    }
-    .sign-table th, .sign-table td{
-      border:1px solid #000;
-      width:90px;
-      text-align:center;
-      vertical-align:middle;
-      padding:0;
-    }
-
-    /* 헤더(기안/총무/회장) 얇게 + 회색 */
-    .sign-table th{
-      background:#e9ecef;
-      height:22px;
-      font-size:13px;
-      font-weight:600;
-      line-height:22px;
-    }
-
-    /* 도장칸 높이 */
-    .sign-table .stamp-td{ height:54px; }
-
-    /* 시간줄 회색 + 얇게 */
-    .sign-time-row td{
-      background:#e9ecef;
-      height:22px;
-      font-size:11px;
-      color:#333;
-      line-height:22px;
-    }
-
-    /* td 안 정중앙 정렬 */
-    .stamp-cell{
-      width:100%;
-      height:100%;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-    }
-
-    /* ✅ 결재 버튼(초록 강조) */
-    .stamp-click{
-      display:inline-flex;
-      align-items:center;
-      justify-content:center;
-      width:64px;
-      height:40px;
-
-      border:2px solid #1e9e48;
-      color:#1e9e48;
-      background:#e9f7ef;
-      border-radius:10px;
-      box-shadow:0 0 0 2px rgba(30,158,72,0.15);
-
-      font-weight:700;
-      font-size:14px;
-      letter-spacing:.08em;
-      cursor:pointer;
-      user-select:none;
-    }
-    .stamp-click:hover{ background:#1e9e48; color:#fff; }
-    .stamp-click:active{ transform: scale(0.97); }
-
-    /* 승인 SVG 도장 */
-    .stamp-svg-wrap{
-      width:56px;
-      height:56px;
-      color:#d60000;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-    }
-    .stamp-svg{ width:100%; height:100%; display:block; }
-
-    /* 승인 PNG 도장 */
-    .stamp-img{
-      display:block;
-      max-width:70px;
-      max-height:46px;
-      width:auto;
-      height:auto;
-      margin:0 auto;
-    }
-
-    /* 반려 표시 */
-    .stamp-rejected{
-      color:#b00020;
-      border:2px solid #b00020;
-      border-radius:10px;
-      padding:8px 12px;
-      font-weight:800;
-      font-size:14px;
-      line-height:1;
-    }
-
-    .stamp-empty{ width:56px; height:56px; }
-
-    /* ===== 본문 테이블 ===== */
-    .info-table, .subject-table, .content-table { width:100%; border-collapse:collapse; table-layout:fixed; margin-bottom:10px; }
-    .info-table th, .info-table td, .subject-table th, .subject-table td, .content-table th, .content-table td {
-      border:1px solid #000; padding:6px; font-size:14px;
-    }
-    .info-table th, .subject-table th, .content-table th { width:80px; text-align:center; background:#f8f8f8; }
-    .content-table td { height: 400px; vertical-align: top; overflow:auto; }
-    .content-value { white-space:pre-wrap; word-break:break-word; max-width:100%; }
-    .content-value img { max-width:100% !important; height:auto !important; display:block; }
-    .content-value table { max-width:100% !important; width:100% !important; table-layout:fixed; border-collapse:collapse; }
-    .content-value th, .content-value td { word-break:break-word; overflow-wrap:anywhere; }
-
-    .hint { font-size:13px; color:#444; margin-top:10px; }
-
-    .reject-box { margin-top:8px; padding:8px; border:1px solid #000; background:#fafafa; text-align:left; }
-    .reject-box .t { font-weight:bold; color:#b00020; margin-bottom:4px; }
-    .reject-box .c { white-space:pre-wrap; }
-
-    .done-row{ margin-top:14px; display:flex; justify-content:space-between; align-items:flex-start; gap:12px; }
-    .done-msg-left{ color:#0a7c1f; font-weight:bold; flex:1; }
-    .done-msg-right{ text-align:right; font-size:13px; line-height:1.5; white-space:nowrap; }
-
-    .btn-row { margin-top: 16px; display:flex; gap:8px; justify-content:center; flex-wrap:wrap; }
-    .btn-link{
-      padding:10px 18px;
-      font-size:14px;
-      cursor:pointer;
-      border:1px solid #555;
-      border-radius:6px;   /* ✅ border 앞에 붙은 오타 제거 */
-      background:#fff;
-      text-decoration:none;
-      color:#111;
-    }
-
-
-    /* 모바일 */
-    @media (max-width:600px){
-      body { margin:10px; font-size:13px; }
-      .paper { padding:10px; }
-      .header-wrapper { flex-direction:column; align-items:stretch; }
-      .title-row h1 { font-size:28px; letter-spacing:0.25em; }
-
-      .sign-table th, .sign-table td{ width:72px; }
-      .sign-table .stamp-td{ height:50px; }
-      .stamp-click{ width:60px; height:38px; font-size:13px; }
-      .stamp-img{ max-width:64px; max-height:42px; }
-
-      .done-row{ flex-direction:column; }
-      .done-msg-right{ text-align:left; white-space:normal; }
-      .content-table td { height:260px; }
-    }
-
-    /* ===== 첨부 ===== */
-    .attach-box{
-      margin-top:12px;
-      border:1px solid #000;
-      padding:10px;
-      background:#fafafa;
-    }
-    .attach-title{ font-weight:800; margin-bottom:6px; }
-    .attach-list{ margin:0; padding-left:18px; }
-    .attach-list li{ margin:4px 0; line-height:1.4; }
-    .attach-list a{ text-decoration:underline; }
-    .attach-meta{ font-size:12px; color:#666; margin-left:6px; }
-    @media (max-width:600px){
-      .attach-list li{ padding:6px 0; }
-    }
-
-    /* ===== 로그 토글 ===== */
-    .log-toggle{
-      margin-top:10px;
-      font-size:13px;
-      cursor:pointer;
-      color:#1f6feb;
-      text-decoration:underline;
-    }
-    .log-box{
-      margin-top:8px;
-      padding:8px;
-      border:1px dashed #999;
-      background:#f9f9f9;
-      font-size:12px;
-    }
-    .log-line{ margin-top:4px; }
-
-    /* ===== 결재 모달 버튼(아웃라인) ===== */
-    .modal-action-btn{
-      width:100%;
-      height:60px;
-      border-radius:12px;
-      font-size:18px;
-      font-weight:900;
-      letter-spacing:0.08em;
-      cursor:pointer;
-      user-select:none;
-
-      background:#fff;
-      position:relative;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      text-align:center;
-
-      gap:10px;
-      padding:0 12px;
-      margin:0; /* ✅ 바깥 여백은 컨테이너가 관리 */
-    }
-
-    .modal-action-btn:active{ transform:scale(0.99); }
-    .modal-action-btn[disabled]{ opacity:0.6; cursor:not-allowed; transform:none; }
-
-    /* 승인(빨강 outline) */
-    .modal-approve{
-      border:2px solid #d1242f;
-      color:#d1242f;
-    }
-    .modal-approve:hover{ background:#fff5f6; }
-
-    /* 반려(파랑 outline) */
-    .modal-reject{
-      border:2px solid #1f6feb;
-      color:#1f6feb;
-    }
-    .modal-reject:hover{ background:#f3f7ff; }
-
-    /* ✅ 승인 스피너: 자리 유지(가운데 흔들림 방지) */
-    .btn-spinner{
-      width:18px;
-      height:18px;
-      border-radius:50%;
-      border:2px solid currentColor;
-      border-right-color:transparent;
-      animation:spin 0.8s linear infinite;
-
-      position:absolute;           /* ✅ 절대 위치 */
-      left:14px;                   /* ✅ 버튼 왼쪽에 고정 */
-      top:50%;
-      transform:translateY(-50%);
-      visibility:hidden;           /* 기본 숨김 */
-    }
-    .btn-spinner.is-on{ visibility:visible; }
-
-    @keyframes spin{ to { transform:rotate(360deg); } }
-
-    /* 모바일 터치감 */
-    @media (max-width:600px){
-      .modal-action-btn{ height:64px; font-size:19px; }
-    }
-  </style>
-</head>
-
-<body>
-
-  <!-- ===== 결재 모달 ===== -->
-  <div id="apvModalBackdrop" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:999; align-items:center; justify-content:center; padding:14px;">
-    <div style="background:#fff; width:100%; max-width:420px; border-radius:12px; padding:16px; box-shadow:0 10px 30px rgba(0,0,0,.25);">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-        <div style="font-weight:800;">결재 처리</div>
-        <button type="button" id="apvModalClose" style="border:1px solid #999; background:#fff; border-radius:8px; padding:6px 10px; cursor:pointer;">취소</button>
-      </div>
-
-      <div style="font-size:13px; color:#555; margin-bottom:10px;">
-        문서: <b>#{{ approval.id }}</b> · {{ approval.title }}
-      </div>
-
-      <!-- ✅ 버튼 영역: 가운데 정렬 + 간격 넓게 -->
-      <div style="display:flex; justify-content:center; gap:16px; margin-bottom:14px;">
-        <form id="rejectForm" method="post" action="/approval/v2/{{ approval.id }}/reject/" style="flex:1; margin:0;">
-          {% csrf_token %}
-          <input type="hidden" name="reason" id="rejectReasonHidden">
-          <button type="submit" id="rejectBtn" class="modal-action-btn modal-reject">
-            ✖ 반려
-          </button>
-        </form>
-
-        <form id="approveForm" method="post" action="/approval/v2/{{ approval.id }}/approve/" style="flex:1; margin:0;">
-          {% csrf_token %}
-          <button type="submit" id="approveBtn" class="modal-action-btn modal-approve">
-            <span class="btn-spinner" id="approveSpinner"></span>
-            ✔ 승인
-          </button>
-        </form>
-      </div>
-
-      <!-- ✅ 그 아래 반려사유 입력창 -->
-      <div style="margin-bottom:0;">
-        <div style="font-size:13px; font-weight:700; margin-bottom:6px;">반려 사유(반려 시 필수)</div>
-        <textarea id="rejectReasonInput" rows="3"
-                  style="width:100%; box-sizing:border-box; border:1px solid #999; border-radius:10px; padding:10px; font-size:14px;"
-                  placeholder="반려 시에만 입력하세요."></textarea>
-      </div>
-
-    </div>
-  </div>
-
-  <div class="paper">
-    <div class="header-wrapper">
-      <div class="header-left">
-        <div class="title-row"><h1>품 의 서</h1></div>
-        <div class="date-row">
-          <span class="date-text">{{ approval.created_at|date:"Y-m-d H:i" }}</span>
-        </div>
-      </div>
-
-      <!-- ===== 결재란 ===== -->
-      <table class="sign-table">
-        <tr>
-          {% for s in steps %}
-            <th>
-              {% if s.role == "drafter" %}기안{% elif s.role == "admin" %}총무{% elif s.role == "chairman" %}회장{% elif s.role == "auditor" %}감사{% else %}{{ s.role }}{% endif %}
-            </th>
-          {% endfor %}
-        </tr>
-
-        <tr>
-          {% for s in steps %}
-            <td class="stamp-td">
-              <div class="stamp-cell">
-                {% if s.state == "approved" %}
-
-                  {% if s.stamp_image %}
-                    <img src="{{ s.stamp_image.url }}" alt="stamp" class="stamp-img" />
-                  {% else %}
-                    <div class="stamp-svg-wrap" aria-label="approved stamp">
-                      {% if route.template_code == "ADMIN_FINAL" and s.role == "admin" %}
-                        <svg viewBox="0 0 120 120" class="stamp-svg" role="img" aria-label="전결">
-                          <rect x="10" y="10" width="100" height="100" fill="none" stroke="currentColor" stroke-width="6"/>
-                          <text x="60" y="50" text-anchor="middle" font-size="22" font-weight="800" fill="currentColor">전결</text>
-                          <text x="60" y="80" text-anchor="middle" font-size="22" font-weight="800" fill="currentColor">승인</text>
-                        </svg>
-                      {% else %}
-                        <svg viewBox="0 0 120 120" class="stamp-svg" role="img" aria-label="승인">
-                          <rect x="10" y="10" width="100" height="100" fill="none" stroke="currentColor" stroke-width="6"/>
-                          <text x="60" y="52" text-anchor="middle" font-size="22" font-weight="800" fill="currentColor">승인</text>
-                          <text x="60" y="82" text-anchor="middle" font-size="18" font-weight="800" fill="currentColor">
-                            {% if s.role == "admin" %}총무{% elif s.role == "chairman" %}회장{% elif s.role == "drafter" %}기안{% elif s.role == "auditor" %}감사{% else %}{{ s.role }}{% endif %}
-                          </text>
-                        </svg>
-                      {% endif %}
-                    </div>
-                  {% endif %}
-
-                {% elif s.state == "rejected" %}
-                  <img src="/static/img/reject_img.jpg" alt="반려" class="stamp-img" />
-
-                {% elif route.status == "in_progress" and s.state == "pending" and s.role == actor_role %}
-                  <button type="button" class="stamp-click" data-open-approval-modal="1">결 재</button>
-
-                {% else %}
-                  <div class="stamp-empty"></div>
-                {% endif %}
-              </div>
-            </td>
-          {% endfor %}
-        </tr>
-
-        <tr class="sign-time-row">
-          {% for s in steps %}
-            <td>
-              {% if s.acted_at %}
-                {% load tz %}
-                {{ s.acted_at|localtime|date:"n/j H:i" }}
-              {% else %}
-                &nbsp;
-              {% endif %}
-            </td>
-          {% endfor %}
-        </tr>
-      </table>
-    </div>
-
-    <table class="info-table">
-      <tr>
-        <th>소속</th><td>{{ approval.department }}</td>
-        <th>성명</th><td>{{ approval.name }}</td>
-      </tr>
-    </table>
-
-    <table class="subject-table">
-      <tr><th>제목</th><td>{{ approval.title }}</td></tr>
-    </table>
-
-    <table class="content-table">
-      <tr>
-        <th>내용</th>
-        <td><div class="content-value">{{ approval.content|safe }}</div></td>
-      </tr>
-    </table>
-
-    {% for s in steps %}
-      {% if s.state == "rejected" and s.reject_reason %}
-        <div class="reject-box">
-          <div class="t">
-            반려 사유 (
-            {% if s.role == "drafter" %}기안{% elif s.role == "admin" %}총무{% elif s.role == "chairman" %}회장{% elif s.role == "auditor" %}감사{% else %}{{ s.role }}{% endif %}
-            )
-          </div>
-          <div class="c">{{ s.reject_reason }}</div>
-        </div>
-      {% endif %}
-    {% endfor %}
-
-    <!-- 첨부파일 -->
-    {% if approval.v2_attachments.all %}
-      <div class="attach-box">
-        <div class="attach-title">📎 첨부파일</div>
-        <ul class="attach-list">
-          {% for f in approval.v2_attachments.all %}
-            <li>
-              <a href="{{ f.file.url }}" target="_blank" rel="noopener">
-                {{ f.original_name|default:f.file.name }}
-              </a>
-              <span class="attach-meta">
-                {{ f.uploaded_at|date:"Y-m-d H:i" }}
-              </span>
-            </li>
-          {% endfor %}
-        </ul>
-      </div>
-    {% endif %}
-
-    {% if route.status == "completed" %}
-      <div class="done-row">
-        <div class="done-msg-left">✅ 결재가 최종 완료되었습니다.</div>
-        <div class="done-msg-right">
-          <div>완료 시각: {{ route.completed_at|date:"Y-m-d H:i"|default:"-" }}</div>
-          <div class="log-toggle" onclick="toggleLogs()">🔎 승인자 로그 보기</div>
-          <div id="logBox" class="log-box" style="display:none;">
-            <div><b>상신 IP</b>: {{ approval.submit_ip|default:"-" }}</div>
-            {% for s in steps %}
-              {% if s.acted_at %}
-                <div class="log-line">
-                  <b>
-                    {% if s.role == "drafter" %}담당
-                    {% elif s.role == "admin" %}총무
-                    {% elif s.role == "chairman" %}회장
-                    {% elif s.role == "auditor" %}감사
-                    {% else %}{{ s.role }}{% endif %}
-                  </b>
-                  · IP {{ s.acted_ip|default:"-" }}
-                  · 기기 {{ s.acted_device|default:"-" }}
-                </div>
-              {% endif %}
-            {% endfor %}
-          </div>
-        </div>
-      </div>
-    {% elif route.status == "rejected" %}
-      <p class="hint">🚫 반려된 문서입니다. (상신 후 결재선 수정 불가 / 재상신은 새로 작성)</p>
-    {% else %}
-      <p class="hint">✅ 현재 결재자가 승인/반려 처리할 수 있습니다.</p>
-    {% endif %}
-
-    <div class="btn-row" style="margin-top:18px;">
-      <a class="btn-link" href="/approval/v2/">리스트로 돌아가기</a>
-    </div>
-  </div>
-
-  <script>
-  (function(){
-    const backdrop = document.getElementById("apvModalBackdrop");
-    const closeBtn = document.getElementById("apvModalClose");
-
-    const reasonInput  = document.getElementById("rejectReasonInput");
-    const reasonHidden = document.getElementById("rejectReasonHidden");
-
-    const rejectForm = document.getElementById("rejectForm");
-    const rejectBtn  = document.getElementById("rejectBtn");
-
-    const approveForm    = document.getElementById("approveForm");
-    const approveBtn     = document.getElementById("approveBtn");
-    const approveSpinner = document.getElementById("approveSpinner");
-
-    function openModal(){
-      if(!backdrop) return;
-      if(reasonInput) reasonInput.value = "";
-      if(reasonHidden) reasonHidden.value = "";
-      if(rejectBtn) rejectBtn.disabled = false;
-      if(approveBtn) approveBtn.disabled = false;
-      if(approveSpinner) approveSpinner.classList.remove("is-on");
-
-      backdrop.style.display = "flex";
-
-      // ✅ 모달 오픈 시 버튼 쪽으로 포커스
-      if(rejectBtn) rejectBtn.focus();
-      else if(approveBtn) approveBtn.focus();
-    }
-
-    function closeModal(){
-      if(!backdrop) return;
-      backdrop.style.display = "none";
-    }
-
-    document.querySelectorAll("[data-open-approval-modal]").forEach(el=>{
-      el.addEventListener("click", openModal);
-    });
-
-    if(closeBtn) closeBtn.addEventListener("click", closeModal);
-
-    if(backdrop){
-      backdrop.addEventListener("click", (e)=>{
-        if(e.target === backdrop) closeModal();
-      });
-    }
-
-    // ✅ 반려: 사유 없으면 막고, 사유 있을 때만 disable
-    if(rejectForm){
-      rejectForm.addEventListener("submit", (e)=>{
-        const v = (reasonInput?.value || "").trim();
-        if(!v){
-          e.preventDefault();
-          alert("반려 사유를 입력해주세요.");
-          if(reasonInput) reasonInput.focus();
-          if(rejectBtn) rejectBtn.disabled = false; // 혹시라도 잠겼다면 복구
-          return;
-        }
-        if(reasonHidden) reasonHidden.value = v;
-        if(rejectBtn) rejectBtn.disabled = true; // ✅ 통과했을 때만 잠금
-      });
-    }
-
-    // ✅ 승인: 스피너 + 버튼 잠금(중복 제출 방지)
-    if(approveForm && approveBtn && approveSpinner){
-      approveForm.addEventListener("submit", ()=>{
-        approveBtn.disabled = true;
-        approveSpinner.classList.add("is-on");
-      });
-    }
-  })();
-
-  function toggleLogs(){
-    const el = document.getElementById("logBox");
-    if(!el) return;
-    el.style.display = (el.style.display === "none") ? "block" : "none";
+{% load tz %}
+
+{% block title %}품의서 상세 - {{ approval.title }}{% endblock %}
+
+{% block extra_head %}
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, "맑은 고딕", sans-serif; margin: 20px; }
+  .paper { width: 100%; max-width: 900px; border: 1px solid #000; padding: 20px; box-sizing: border-box; margin: 0 auto; background: #fff; }
+
+  .header-wrapper { display:flex; align-items:flex-start; justify-content:center; margin-bottom: 10px; gap: 12px; }
+  .header-left { flex:1; text-align:center; }
+  .title-row h1 { margin:0; font-size:36px; letter-spacing:0.4em; }
+  .date-row { text-align:center; margin:10px 0 20px 0; font-size:16px; }
+  .date-row .date-text { display:inline-block; min-width:160px; padding-bottom:2px; border-bottom:1px solid #000; font-size:14px; }
+
+  /* ===== 결재 테이블 ===== */
+  .sign-table{
+    margin-left:auto;
+    border-collapse:collapse;
+    border:1px solid #000;
+    background:#fff;
+    font-size:13px;
+    table-layout: fixed;
   }
-  </script>
-</body>
-</html>
+  .sign-table th, .sign-table td{
+    border:1px solid #000;
+    width:90px;
+    text-align:center;
+    vertical-align:middle;
+    padding:0;
+  }
+
+  .sign-table th{
+    background:#e9ecef;
+    height:22px;
+    font-size:13px;
+    font-weight:600;
+    line-height:22px;
+  }
+
+  .sign-table .stamp-td{ height:54px; }
+
+  .sign-time-row td{
+    background:#e9ecef;
+    height:22px;
+    font-size:11px;
+    color:#333;
+    line-height:22px;
+  }
+
+  .stamp-cell{
+    width:100%;
+    height:100%;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+
+  /* ✅ 결재 버튼(초록 강조) */
+  .stamp-click{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    width:64px;
+    height:40px;
+    border:2px solid #1e9e48;
+    color:#1e9e48;
+    background:#e9f7ef;
+    border-radius:10px;
+    box-shadow:0 0 0 2px rgba(30,158,72,0.15);
+    font-weight:700;
+    font-size:14px;
+    letter-spacing:.08em;
+    cursor:pointer;
+    user-select:none;
+  }
+  .stamp-click:hover{ background:#1e9e48; color:#fff; }
+  .stamp-click:active{ transform: scale(0.97); }
+
+  /* 승인 SVG */
+  .stamp-svg-wrap{
+    width:56px;
+    height:56px;
+    color:#d60000;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+  .stamp-svg{ width:100%; height:100%; display:block; }
+
+  /* 도장 PNG */
+  .stamp-img{
+    display:block;
+    max-width:70px;
+    max-height:46px;
+    width:auto;
+    height:auto;
+    margin:0 auto;
+  }
+
+  .stamp-rejected{
+    color:#b00020;
+    border:2px solid #b00020;
+    border-radius:10px;
+    padding:8px 12px;
+    font-weight:800;
+    font-size:14px;
+    line-height:1;
+  }
+
+  .stamp-empty{ width:56px; height:56px; }
+
+  /* ===== 본문 ===== */
+  .info-table, .subject-table, .content-table { width:100%; border-collapse:collapse; table-layout:fixed; margin-bottom:10px; }
+  .info-table th, .info-table td, .subject-table th, .subject-table td, .content-table th, .content-table td {
+    border:1px solid #000; padding:6px; font-size:14px;
+  }
+  .info-table th, .subject-table th, .content-table th { width:80px; text-align:center; background:#f8f8f8; }
+  .content-table td { height: 400px; vertical-align: top; overflow:auto; }
+  .content-value { white-space:pre-wrap; word-break:break-word; max-width:100%; }
+  .content-value img { max-width:100% !important; height:auto !important; display:block; }
+  .content-value table { max-width:100% !important; width:100% !important; table-layout:fixed; border-collapse:collapse; }
+  .content-value th, .content-value td { word-break:break-word; overflow-wrap:anywhere; }
+
+  .hint { font-size:13px; color:#444; margin-top:10px; }
+
+  .reject-box { margin-top:8px; padding:8px; border:1px solid #000; background:#fafafa; text-align:left; }
+  .reject-box .t { font-weight:bold; color:#b00020; margin-bottom:4px; }
+  .reject-box .c { white-space:pre-wrap; }
+
+  .done-row{ margin-top:14px; display:flex; justify-content:space-between; align-items:flex-start; gap:12px; }
+  .done-msg-left{ color:#0a7c1f; font-weight:bold; flex:1; }
+  .done-msg-right{ text-align:right; font-size:13px; line-height:1.5; white-space:nowrap; }
+
+  .btn-row { margin-top: 16px; display:flex; gap:8px; justify-content:center; flex-wrap:wrap; }
+  .btn-link{
+    padding:10px 18px;
+    font-size:14px;
+    cursor:pointer;
+    border:1px solid #555;
+    border-radius:6px;
+    background:#fff;
+    text-decoration:none;
+    color:#111;
+  }
+
+  /* 모바일 */
+  @media (max-width:600px){
+    body { margin:10px; font-size:13px; }
+    .paper { padding:10px; }
+    .header-wrapper { flex-direction:column; align-items:stretch; }
+    .title-row h1 { font-size:28px; letter-spacing:0.25em; }
+
+    .sign-table th, .sign-table td{ width:72px; }
+    .sign-table .stamp-td{ height:50px; }
+    .stamp-click{ width:60px; height:38px; font-size:13px; }
+    .stamp-img{ max-width:64px; max-height:42px; }
+
+    .done-row{ flex-direction:column; }
+    .done-msg-right{ text-align:left; white-space:normal; }
+    .content-table td { height:260px; }
+  }
+
+  /* ===== 첨부 ===== */
+  .attach-box{
+    margin-top:12px;
+    border:1px solid #000;
+    padding:10px;
+    background:#fafafa;
+  }
+  .attach-title{ font-weight:800; margin-bottom:6px; }
+  .attach-list{ margin:0; padding-left:18px; }
+  .attach-list li{ margin:4px 0; line-height:1.4; }
+  .attach-list a{ text-decoration:underline; }
+  .attach-meta{ font-size:12px; color:#666; margin-left:6px; }
+  @media (max-width:600px){
+    .attach-list li{ padding:6px 0; }
+  }
+
+  /* ===== 로그 토글 ===== */
+  .log-toggle{
+    margin-top:10px;
+    font-size:13px;
+    cursor:pointer;
+    color:#1f6feb;
+    text-decoration:underline;
+  }
+  .log-box{
+    margin-top:8px;
+    padding:8px;
+    border:1px dashed #999;
+    background:#f9f9f9;
+    font-size:12px;
+  }
+  .log-line{ margin-top:4px; }
+
+  /* ===== 결재 모달 버튼(아웃라인) ===== */
+  .modal-action-btn{
+    width:100%;
+    height:60px;
+    border-radius:12px;
+    font-size:18px;
+    font-weight:900;
+    letter-spacing:0.08em;
+    cursor:pointer;
+    user-select:none;
+
+    background:#fff;
+    position:relative;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    text-align:center;
+
+    padding:0 12px;
+    margin:0; /* ✅ 바깥 여백은 컨테이너가 관리 */
+  }
+  .modal-action-btn:active{ transform:scale(0.99); }
+  .modal-action-btn[disabled]{ opacity:0.6; cursor:not-allowed; transform:none; }
+
+  .modal-approve{
+    border:2px solid #d1242f;
+    color:#d1242f;
+  }
+  .modal-approve:hover{ background:#fff5f6; }
+
+  .modal-reject{
+    border:2px solid #1f6feb;
+    color:#1f6feb;
+  }
+  .modal-reject:hover{ background:#f3f7ff; }
+
+  /* ✅ 승인 스피너: 자리 유지(가운데 흔들림 방지) */
+  .btn-spinner{
+    width:18px;
+    height:18px;
+    border-radius:50%;
+    border:2px solid currentColor;
+    border-right-color:transparent;
+    animation:spin 0.8s linear infinite;
+
+    position:absolute;
+    left:14px;
+    top:50%;
+    transform:translateY(-50%);
+    visibility:hidden;
+  }
+  .btn-spinner.is-on{ visibility:visible; }
+
+  @keyframes spin{ to { transform:rotate(360deg); } }
+
+  @media (max-width:600px){
+    .modal-action-btn{ height:64px; font-size:19px; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- ===== 결재 모달 ===== -->
+<div id="apvModalBackdrop" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:999; align-items:center; justify-content:center; padding:14px;">
+  <div style="background:#fff; width:100%; max-width:420px; border-radius:12px; padding:16px; box-shadow:0 10px 30px rgba(0,0,0,.25);">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+      <div style="font-weight:800;">결재 처리</div>
+      <button type="button" id="apvModalClose" style="border:1px solid #999; background:#fff; border-radius:8px; padding:6px 10px; cursor:pointer;">취소</button>
+    </div>
+
+    <div style="font-size:13px; color:#555; margin-bottom:10px;">
+      문서: <b>#{{ approval.id }}</b> · {{ approval.title }}
+    </div>
+
+    <!-- ✅ 버튼 영역 -->
+    <div style="display:flex; justify-content:center; gap:16px; margin-bottom:14px;">
+      <form id="rejectForm" method="post" action="/approval/v2/{{ approval.id }}/reject/" style="flex:1; margin:0;">
+        {% csrf_token %}
+        <input type="hidden" name="reason" id="rejectReasonHidden">
+        <button type="submit" id="rejectBtn" class="modal-action-btn modal-reject">✖ 반려</button>
+      </form>
+
+      <form id="approveForm" method="post" action="/approval/v2/{{ approval.id }}/approve/" style="flex:1; margin:0;">
+        {% csrf_token %}
+        <button type="submit" id="approveBtn" class="modal-action-btn modal-approve">
+          <span class="btn-spinner" id="approveSpinner"></span>
+          ✔ 승인
+        </button>
+      </form>
+    </div>
+
+    <div style="margin-bottom:0;">
+      <div style="font-size:13px; font-weight:700; margin-bottom:6px;">반려 사유(반려 시 필수)</div>
+      <textarea id="rejectReasonInput" rows="3"
+                style="width:100%; box-sizing:border-box; border:1px solid #999; border-radius:10px; padding:10px; font-size:14px;"
+                placeholder="반려 시에만 입력하세요."></textarea>
+    </div>
+  </div>
+</div>
+
+<div class="paper">
+  <div class="header-wrapper">
+    <div class="header-left">
+      <div class="title-row"><h1>품 의 서</h1></div>
+      <div class="date-row">
+        <span class="date-text">{{ approval.created_at|date:"Y-m-d H:i" }}</span>
+      </div>
+    </div>
+
+    <!-- ===== 결재란 ===== -->
+    <table class="sign-table">
+      <tr>
+        {% for s in steps %}
+          <th>
+            {% if s.role == "drafter" %}기안{% elif s.role == "admin" %}총무{% elif s.role == "chairman" %}회장{% elif s.role == "auditor" %}감사{% else %}{{ s.role }}{% endif %}
+          </th>
+        {% endfor %}
+      </tr>
+
+      <tr>
+        {% for s in steps %}
+          <td class="stamp-td">
+            <div class="stamp-cell">
+              {% if s.state == "approved" %}
+                {% if s.stamp_image %}
+                  <img src="{{ s.stamp_image.url }}" alt="stamp" class="stamp-img" />
+                {% else %}
+                  <div class="stamp-svg-wrap" aria-label="approved stamp">
+                    {% if route.template_code == "ADMIN_FINAL" and s.role == "admin" %}
+                      <svg viewBox="0 0 120 120" class="stamp-svg" role="img" aria-label="전결">
+                        <rect x="10" y="10" width="100" height="100" fill="none" stroke="currentColor" stroke-width="6"/>
+                        <text x="60" y="50" text-anchor="middle" font-size="22" font-weight="800" fill="currentColor">전결</text>
+                        <text x="60" y="80" text-anchor="middle" font-size="22" font-weight="800" fill="currentColor">승인</text>
+                      </svg>
+                    {% else %}
+                      <svg viewBox="0 0 120 120" class="stamp-svg" role="img" aria-label="승인">
+                        <rect x="10" y="10" width="100" height="100" fill="none" stroke="currentColor" stroke-width="6"/>
+                        <text x="60" y="52" text-anchor="middle" font-size="22" font-weight="800" fill="currentColor">승인</text>
+                        <text x="60" y="82" text-anchor="middle" font-size="18" font-weight="800" fill="currentColor">
+                          {% if s.role == "admin" %}총무{% elif s.role == "chairman" %}회장{% elif s.role == "drafter" %}기안{% elif s.role == "auditor" %}감사{% else %}{{ s.role }}{% endif %}
+                        </text>
+                      </svg>
+                    {% endif %}
+                  </div>
+                {% endif %}
+
+              {% elif s.state == "rejected" %}
+                <img src="{% static 'img/reject_img.jpg' %}" alt="반려" class="stamp-img" />
+
+              {% elif route.status == "in_progress" and s.state == "pending" and s.role == actor_role %}
+                <button type="button" class="stamp-click" data-open-approval-modal="1">결 재</button>
+
+              {% else %}
+                <div class="stamp-empty"></div>
+              {% endif %}
+            </div>
+          </td>
+        {% endfor %}
+      </tr>
+
+      <tr class="sign-time-row">
+        {% for s in steps %}
+          <td>
+            {% if s.acted_at %}
+              {{ s.acted_at|localtime|date:"n/j H:i" }}
+            {% else %}
+              &nbsp;
+            {% endif %}
+          </td>
+        {% endfor %}
+      </tr>
+    </table>
+  </div>
+
+  <table class="info-table">
+    <tr>
+      <th>소속</th><td>{{ approval.department }}</td>
+      <th>성명</th><td>{{ approval.name }}</td>
+    </tr>
+  </table>
+
+  <table class="subject-table">
+    <tr><th>제목</th><td>{{ approval.title }}</td></tr>
+  </table>
+
+  <table class="content-table">
+    <tr>
+      <th>내용</th>
+      <td><div class="content-value">{{ approval.content|safe }}</div></td>
+    </tr>
+  </table>
+
+  {% for s in steps %}
+    {% if s.state == "rejected" and s.reject_reason %}
+      <div class="reject-box">
+        <div class="t">
+          반려 사유 (
+          {% if s.role == "drafter" %}기안{% elif s.role == "admin" %}총무{% elif s.role == "chairman" %}회장{% elif s.role == "auditor" %}감사{% else %}{{ s.role }}{% endif %}
+          )
+        </div>
+        <div class="c">{{ s.reject_reason }}</div>
+      </div>
+    {% endif %}
+  {% endfor %}
+
+  <!-- 첨부파일 -->
+  {% if approval.v2_attachments.all %}
+    <div class="attach-box">
+      <div class="attach-title">📎 첨부파일</div>
+      <ul class="attach-list">
+        {% for f in approval.v2_attachments.all %}
+          <li>
+            <a href="{{ f.file.url }}" target="_blank" rel="noopener">
+              {{ f.original_name|default:f.file.name }}
+            </a>
+            <span class="attach-meta">{{ f.uploaded_at|date:"Y-m-d H:i" }}</span>
+          </li>
+        {% endfor %}
+      </ul>
+    </div>
+  {% endif %}
+
+  {% if route.status == "completed" %}
+    <div class="done-row">
+      <div class="done-msg-left">✅ 결재가 최종 완료되었습니다.</div>
+      <div class="done-msg-right">
+        <div>완료 시각: {{ route.completed_at|date:"Y-m-d H:i"|default:"-" }}</div>
+        <div class="log-toggle" onclick="toggleLogs()">🔎 승인자 로그 보기</div>
+        <div id="logBox" class="log-box" style="display:none;">
+          <div><b>상신 IP</b>: {{ approval.submit_ip|default:"-" }}</div>
+          {% for s in steps %}
+            {% if s.acted_at %}
+              <div class="log-line">
+                <b>
+                  {% if s.role == "drafter" %}담당
+                  {% elif s.role == "admin" %}총무
+                  {% elif s.role == "chairman" %}회장
+                  {% elif s.role == "auditor" %}감사
+                  {% else %}{{ s.role }}{% endif %}
+                </b>
+                · IP {{ s.acted_ip|default:"-" }}
+                · 기기 {{ s.acted_device|default:"-" }}
+              </div>
+            {% endif %}
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  {% elif route.status == "rejected" %}
+    <p class="hint">🚫 반려된 문서입니다. (상신 후 결재선 수정 불가 / 재상신은 새로 작성)</p>
+  {% else %}
+    <p class="hint">✅ 현재 결재자가 승인/반려 처리할 수 있습니다.</p>
+  {% endif %}
+
+  <div class="btn-row" style="margin-top:18px;">
+    <a class="btn-link" href="/approval/v2/">리스트로 돌아가기</a>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_script %}
+<script>
+(function(){
+  const backdrop = document.getElementById("apvModalBackdrop");
+  const closeBtn = document.getElementById("apvModalClose");
+
+  const reasonInput  = document.getElementById("rejectReasonInput");
+  const reasonHidden = document.getElementById("rejectReasonHidden");
+
+  const rejectForm = document.getElementById("rejectForm");
+  const rejectBtn  = document.getElementById("rejectBtn");
+
+  const approveForm    = document.getElementById("approveForm");
+  const approveBtn     = document.getElementById("approveBtn");
+  const approveSpinner = document.getElementById("approveSpinner");
+
+  function openModal(){
+    if(!backdrop) return;
+
+    if(reasonInput)  reasonInput.value = "";
+    if(reasonHidden) reasonHidden.value = "";
+
+    if(rejectBtn) rejectBtn.disabled = false;
+    if(approveBtn) approveBtn.disabled = false;
+    if(approveSpinner) approveSpinner.classList.remove("is-on");
+
+    backdrop.style.display = "flex";
+
+    if(rejectBtn) rejectBtn.focus();
+    else if(approveBtn) approveBtn.focus();
+  }
+
+  function closeModal(){
+    if(!backdrop) return;
+    backdrop.style.display = "none";
+  }
+
+  document.querySelectorAll("[data-open-approval-modal]").forEach(el=>{
+    el.addEventListener("click", openModal);
+  });
+
+  if(closeBtn) closeBtn.addEventListener("click", closeModal);
+
+  if(backdrop){
+    backdrop.addEventListener("click", (e)=>{
+      if(e.target === backdrop) closeModal();
+    });
+  }
+
+  // ✅ 반려: 사유 없으면 막고, 사유 있을 때만 disable
+  if(rejectForm){
+    rejectForm.addEventListener("submit", (e)=>{
+      const v = (reasonInput?.value || "").trim();
+      if(!v){
+        e.preventDefault();
+        alert("반려 사유를 입력해주세요.");
+        if(reasonInput) reasonInput.focus();
+        if(rejectBtn) rejectBtn.disabled = false;
+        return;
+      }
+      if(reasonHidden) reasonHidden.value = v;
+      if(rejectBtn) rejectBtn.disabled = true;
+    });
+  }
+
+  // ✅ 승인: 스피너 + 버튼 잠금
+  if(approveForm && approveBtn && approveSpinner){
+    approveForm.addEventListener("submit", ()=>{
+      approveBtn.disabled = true;
+      approveSpinner.classList.add("is-on");
+    });
+  }
+})();
+
+function toggleLogs(){
+  const el = document.getElementById("logBox");
+  if(!el) return;
+  el.style.display = (el.style.display === "none") ? "block" : "none";
+}
+</script>
+{% endblock %}
