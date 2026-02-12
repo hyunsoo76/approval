@@ -5,3 +5,17 @@ db.sqlite3
 media/
 .env
 .DS_Stor
+# macOS
+.DS_Store
+**/.DS_Store
+
+# Django collected static
+staticfiles/
+
+# Local static cache or junk
+static/.DS_Store
+templates/.DS_Store
+
+# Accidental files
+grep
+sed
