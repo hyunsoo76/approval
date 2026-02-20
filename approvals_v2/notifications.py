@@ -29,71 +29,53 @@ def route_telegram_notifications(
 ) -> dict:
     """
     알림을 '누구에게 보낼지'만 결정한다. (실제 발송 X)
-    return 예시:
-      {
-        "dm_roles": ["admin"],              # DM 보낼 대상 role 목록
-        "dm_drafter": True/False,           # 담당(기안자)에게 DM 보낼지
-        "group": True/False,                # 단톡방 알림 보낼지
-      }
-
-    정책(확정):
-    - 총무전결(ADMIN_FINAL):
-        submit: 총무 DM, 단톡방 X
-        approve(총무 승인=최종): 담당 DM, 단톡방 X
-    - 일반품의(NORMAL):
-        submit: 총무 DM, 단톡방 X
-        approve(총무 승인 후 다음=회장 단계): 단톡방 O
-        approve(회장 최종): 단톡방 O
-      * 여기서는 event 수준만 결정하고, "현재 결재자가 누구인지"는 다음 단계에서 연결할 때 구분한다.
     """
-    # 템플릿 코드(우리가 정한 명칭)
-    ADMIN_FINAL = "ADMIN_FINAL"   # 담당 -> 총무(전결)
-    NORMAL = "NORMAL"             # 담당 -> 총무 -> 회장
-    ADMIN_TO_CHAIR = "ADMIN_TO_CHAIR"  # 총무 -> 회장 (필요시)
+
+    ADMIN_FINAL = "ADMIN_FINAL"                 # 담당 -> 총무(전결)
+    NORMAL = "NORMAL"                           # 담당 -> 총무 -> 회장
+    ADMIN_TO_CHAIR = "ADMIN_TO_CHAIR"           # 총무 -> 회장
+    ADMIN_TO_AUDITOR_CHAIR = "ADMIN_TO_AUDITOR_CHAIR"  # 총무 -> 감사 -> 회장
+
+    # ✅ 요구사항: v2 모든 주요 이벤트를 "그룹방에도" 보내기
+    FORCE_GROUP_EVENTS = {"submit", "approve", "reject"}
+
+    def with_group(payload: dict) -> dict:
+        if event in FORCE_GROUP_EVENTS:
+            payload["group"] = True
+        return payload
 
     if template_code == ADMIN_FINAL:
         if event == "submit":
-            return {"dm_roles": [TelegramRecipient.ROLE_ADMIN], "dm_drafter": False, "group": False}
+            return with_group({"dm_roles": [TelegramRecipient.ROLE_ADMIN], "dm_drafter": False, "group": False})
         if event == "approve":
-            # 총무전결의 approve는 "최종 완료"이므로 담당에게만 DM
-            return {"dm_roles": [], "dm_drafter": True, "group": False}
+            return with_group({"dm_roles": [], "dm_drafter": True, "group": False})
         if event == "reject":
-            # 반려도 담당에게만 DM (원하면 admin도 같이 보낼 수 있음)
-            return {"dm_roles": [], "dm_drafter": True, "group": False}
+            return with_group({"dm_roles": [], "dm_drafter": True, "group": False})
 
     if template_code == NORMAL:
         if event == "submit":
-            return {"dm_roles": [TelegramRecipient.ROLE_ADMIN], "dm_drafter": False, "group": False}
+            return with_group({"dm_roles": [TelegramRecipient.ROLE_ADMIN], "dm_drafter": False, "group": False})
         if event == "approve":
-            # NORMAL에서 승인 알림 정책(확정):
-            # - 총무 승인(다음=회장): 단톡방 O
-            # - 회장 승인(최종): 단톡방 O
-            # 지금은 둘 다 단톡방 O이지만, actor_role로 구분 가능하게 열어둔다.
-            if actor_role in (TelegramRecipient.ROLE_ADMIN, TelegramRecipient.ROLE_CHAIRMAN):
-                return {"dm_roles": [], "dm_drafter": False, "group": True}
-            return {"dm_roles": [], "dm_drafter": False, "group": False}
-
+            # 기존엔 admin/chairman일 때만 group=True 였는데, 이제 항상 group=True
+            return with_group({"dm_roles": [], "dm_drafter": False, "group": True})
         if event == "reject":
-            # 확정: 총무가 반려 -> 담당 DM / 회장이 반려 -> 단톡방
+            # 기존 정책 유지하되, 그룹도 항상 보냄
+            # (원하면 dm_drafter도 유지)
             if actor_role == TelegramRecipient.ROLE_CHAIRMAN:
-                return {"dm_roles": [], "dm_drafter": False, "group": True}
-            return {"dm_roles": [], "dm_drafter": True, "group": False}
+                return with_group({"dm_roles": [], "dm_drafter": False, "group": True})
+            return with_group({"dm_roles": [], "dm_drafter": True, "group": False})
 
-
-    if template_code == ADMIN_TO_CHAIR:
+    if template_code in (ADMIN_TO_CHAIR, ADMIN_TO_AUDITOR_CHAIR):
         if event == "submit":
-            return {"dm_roles": [], "dm_drafter": False, "group": True}
+            return with_group({"dm_roles": [], "dm_drafter": False, "group": True})
         if event == "approve":
-            return {"dm_roles": [], "dm_drafter": False, "group": True}
+            return with_group({"dm_roles": [], "dm_drafter": False, "group": True})
         if event == "reject":
-            # 확정: 회장이 반려하면 단톡방
             if actor_role == TelegramRecipient.ROLE_CHAIRMAN:
-                return {"dm_roles": [], "dm_drafter": False, "group": True}
-            return {"dm_roles": [], "dm_drafter": True, "group": False}
+                return with_group({"dm_roles": [], "dm_drafter": False, "group": True})
+            return with_group({"dm_roles": [], "dm_drafter": True, "group": False})
 
-
-    # 기본값: 조용히(로그만) — 운영 정책에 맞춰 조정 가능
-    return {"dm_roles": [], "dm_drafter": False, "group": False}
+    return with_group({"dm_roles": [], "dm_drafter": False, "group": False})
 
 from .telegram import send_dm, send_group
 
