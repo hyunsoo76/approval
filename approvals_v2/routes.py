@@ -10,7 +10,6 @@ def build_route_for_approval(*, approval, template_code: str) -> ApprovalRouteIn
     approval(기존 approvals.ApprovalRequest)에 대해 v2 결재라인 인스턴스를 생성한다.
     상신 후 수정 불가 원칙을 위해, 이미 route가 있으면 예외로 막는다.
     """
-    # route_v2 OneToOne 역참조가 있으면 이미 생성된 것
     if hasattr(approval, "route_v2"):
         raise ValueError("route already exists for this approval")
 
@@ -22,7 +21,7 @@ def build_route_for_approval(*, approval, template_code: str) -> ApprovalRouteIn
         submitted_at=timezone.now(),
     )
 
-    # 템플릿별 결재 단계 정의(확정안 반영)
+    # 템플릿별 결재 단계 정의
     if template_code == ApprovalRouteInstance.TEMPLATE_ADMIN_FINAL:
         steps = [
             (1, TelegramRecipient.ROLE_DRAFTER),
@@ -39,6 +38,13 @@ def build_route_for_approval(*, approval, template_code: str) -> ApprovalRouteIn
             (1, TelegramRecipient.ROLE_ADMIN),
             (2, TelegramRecipient.ROLE_CHAIRMAN),
         ]
+    # ✅ 신규: 총무 → 감사 → 회장
+    elif template_code == "ADMIN_TO_AUDITOR_CHAIR":
+        steps = [
+            (1, TelegramRecipient.ROLE_ADMIN),
+            (2, TelegramRecipient.ROLE_AUDITOR),
+            (3, TelegramRecipient.ROLE_CHAIRMAN),
+        ]
     else:
         raise ValueError(f"unknown template_code: {template_code}")
 
@@ -46,10 +52,9 @@ def build_route_for_approval(*, approval, template_code: str) -> ApprovalRouteIn
     for order, role in steps:
         ApprovalRouteStepInstance.objects.create(route=route, order=order, role=role)
 
-        # 2) ✅ v2 정책: 상신 시점에 drafter 단계는 자동 승인 처리 (steps 만든 뒤에!)
+    # 2) ✅ v2 정책: 상신 시점에 drafter 단계는 자동 승인 처리
     #    - drafter가 1번 단계일 때만
     #    - 이미 current_order가 2 이상이면 중복 적용 방지
-        # 2) ✅ v2 정책: 상신 시점에 drafter 단계는 자동 승인 처리 (steps 만든 뒤에!)
     first = route.steps.filter(order=1).first()
     if (
         first
@@ -71,20 +76,15 @@ def build_route_for_approval(*, approval, template_code: str) -> ApprovalRouteIn
 
         first.save(update_fields=["state", "acted_at", "stamp_image"])
 
+        # 다음 단계가 있으면 current_order=2로 이동
         if route.steps.filter(order=2).exists():
             route.current_order = 2
             route.save(update_fields=["current_order", "updated_at"])
-
-
-
 
     return route
 
 
 def get_current_actor_role(route: ApprovalRouteInstance) -> str:
-    """
-    route.current_order에 해당하는 step의 role을 반환한다.
-    """
     step = route.steps.filter(order=route.current_order).first()
     return step.role if step else ""
 
@@ -113,30 +113,24 @@ def approve_current_step(
     step.acted_device = acted_device
     step.acted_anon_id = acted_anon_id
 
-    # ✅ 결재자 도장 이미지(사람별 등록된 PNG) -> step에 스냅샷 저장
-    # - admin/chairman은 role로 1명 매칭
-    # - drafter는 name으로 매칭(여기서는 approve_current_step이므로 보통 admin/chairman만 옴)
-
+    # ✅ 결재자 도장 이미지 스냅샷 저장
     recipient_qs = TelegramRecipient.objects.filter(role=step.role, is_active=True)
 
-    # drafter일 가능성까지 안전하게 처리 (혹시 테스트로 drafter approve 호출할 수도 있으니)
+    # drafter일 가능성까지 안전하게 처리
     if step.role == TelegramRecipient.ROLE_DRAFTER:
         drafter_name = getattr(route.approval, "name", "") or ""
         if drafter_name:
             recipient_qs = recipient_qs.filter(name=drafter_name)
 
     recipient = recipient_qs.first()
-
     if recipient and recipient.stamp_image:
-        # ✅ ImageField는 '경로(name)'를 명시해주는 게 가장 안전
         step.stamp_image.name = recipient.stamp_image.name
 
+    step.save(update_fields=[
+        "state", "acted_at", "acted_ip", "acted_device", "acted_anon_id", "stamp_image"
+    ])
 
-
-
-    step.save(update_fields=["state", "acted_at", "acted_ip", "acted_device", "acted_anon_id", "stamp_image"])
-
-    # 다음 단계가 있으면 current_order 증가
+    # 다음 단계 처리
     has_next = route.steps.filter(order=route.current_order + 1).exists()
     if has_next:
         route.current_order = route.current_order + 1
@@ -163,7 +157,6 @@ def reject_current_step(
     """
     step = route.steps.select_for_update().get(order=route.current_order)
 
-    # 이미 처리된 단계면 그대로 반환(중복 클릭 방지)
     if step.state != ApprovalRouteStepInstance.STATE_PENDING:
         return step
 
@@ -173,7 +166,9 @@ def reject_current_step(
     step.acted_ip = acted_ip or None
     step.acted_device = acted_device
     step.acted_anon_id = acted_anon_id
-    step.save(update_fields=["state", "reject_reason", "acted_at", "acted_ip", "acted_device", "acted_anon_id"])
+    step.save(update_fields=[
+        "state", "reject_reason", "acted_at", "acted_ip", "acted_device", "acted_anon_id"
+    ])
 
     route.status = ApprovalRouteInstance.STATUS_REJECTED
     route.rejected_at = timezone.now()

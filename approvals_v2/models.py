@@ -1,16 +1,32 @@
 from django.db import models
 from django.conf import settings
 from approvals.models import ApprovalRequest
+import uuid
+from django.db import models
+from django.utils import timezone
+
+
+class TempUploadImage(models.Model):
+    token = models.UUIDField(default=uuid.uuid4, db_index=True)
+    image = models.ImageField(upload_to="temp_uploads/%Y/%m/")
+    created_at = models.DateTimeField(default=timezone.now)
+    is_used = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ["-created_at"]
+
 
 class TelegramRecipient(models.Model):
     ROLE_DRAFTER = "drafter"
     ROLE_ADMIN = "admin"
     ROLE_CHAIRMAN = "chairman"
+    ROLE_AUDITOR = "auditor"
 
     ROLE_CHOICES = [
         (ROLE_DRAFTER, "담당(기안자)"),
         (ROLE_ADMIN, "총무"),
         (ROLE_CHAIRMAN, "회장"),
+        (ROLE_AUDITOR, "감사"),
     ]
 
     role = models.CharField(max_length=20, choices=ROLE_CHOICES)
@@ -129,3 +145,12 @@ class ApprovalAttachment(models.Model):
 
     def __str__(self):
         return self.original_name or self.file.name
+
+class TempUploadImage(models.Model):
+    token = models.UUIDField(default=uuid.uuid4, db_index=True)
+    image = models.ImageField(upload_to="temp_uploads/%Y/%m/")
+    created_at = models.DateTimeField(default=timezone.now)
+    is_used = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ["-created_at"]

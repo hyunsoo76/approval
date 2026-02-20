@@ -163,6 +163,24 @@
     .content-table td { height:260px; }
   }
 
+  /* ✅ 상세화면 모바일 th 폭 줄이기 */
+  @media (max-width:600px){
+    .info-table th,
+    .subject-table th,
+    .content-table th{
+      width:48px;
+      padding:4px;
+      font-size:12px;
+    }
+
+    .info-table td,
+    .subject-table td,
+    .content-table td{
+      padding:6px;
+      font-size:13px;
+    }
+  }
+
   /* ===== 첨부 ===== */
   .attach-box{
     margin-top:12px;
@@ -215,7 +233,7 @@
     text-align:center;
 
     padding:0 12px;
-    margin:0; /* ✅ 바깥 여백은 컨테이너가 관리 */
+    margin:0;
   }
   .modal-action-btn:active{ transform:scale(0.99); }
   .modal-action-btn[disabled]{ opacity:0.6; cursor:not-allowed; transform:none; }
@@ -232,7 +250,7 @@
   }
   .modal-reject:hover{ background:#f3f7ff; }
 
-  /* ✅ 승인 스피너: 자리 유지(가운데 흔들림 방지) */
+  /* ✅ 승인 스피너 */
   .btn-spinner{
     width:18px;
     height:18px;
@@ -254,6 +272,51 @@
   @media (max-width:600px){
     .modal-action-btn{ height:64px; font-size:19px; }
   }
+
+  /* ===== ✅ 커스텀 이미지 뷰어 ===== */
+  #imageViewer{
+    display:none;
+    position:fixed;
+    inset:0;
+    background:#000;
+    z-index:2000;
+    overflow:hidden;
+    touch-action:none; /* ✅ 핀치/드래그 제어 */
+  }
+  #viewerImg{
+    position:absolute;
+    top:50%;
+    left:50%;
+    transform:translate(-50%, -50%) scale(1);
+    max-width:100%;
+    max-height:100%;
+    transition:transform .15s ease;
+    will-change: transform;
+  }
+  #viewerClose{
+    position:absolute;
+    top:16px;
+    right:16px;
+    color:#fff;
+    font-size:30px;
+    cursor:pointer;
+    padding:6px 10px;
+    background:rgba(0,0,0,0.35);
+    border-radius:10px;
+    user-select:none;
+  }
+  #viewerCounter{
+    position:absolute;
+    bottom:16px;
+    left:50%;
+    transform:translateX(-50%);
+    color:#fff;
+    font-size:14px;
+    background:rgba(0,0,0,0.45);
+    padding:6px 12px;
+    border-radius:20px;
+    user-select:none;
+  }
 </style>
 {% endblock %}
 
@@ -270,7 +333,6 @@
       문서: <b>#{{ approval.id }}</b> · {{ approval.title }}
     </div>
 
-    <!-- ✅ 버튼 영역 -->
     <div style="display:flex; justify-content:center; gap:16px; margin-bottom:14px;">
       <form id="rejectForm" method="post" action="/approval/v2/{{ approval.id }}/reject/" style="flex:1; margin:0;">
         {% csrf_token %}
@@ -305,7 +367,6 @@
       </div>
     </div>
 
-    <!-- ===== 결재란 ===== -->
     <table class="sign-table">
       <tr>
         {% for s in steps %}
@@ -372,7 +433,7 @@
 
   <table class="info-table">
     <tr>
-      <th>소속</th><td>{{ approval.department }}</td>
+      <th>소속</th><td class="dept-cell">{{ approval.department }}</td>
       <th>성명</th><td>{{ approval.name }}</td>
     </tr>
   </table>
@@ -401,7 +462,6 @@
     {% endif %}
   {% endfor %}
 
-  <!-- 첨부파일 -->
   {% if approval.v2_attachments.all %}
     <div class="attach-box">
       <div class="attach-title">📎 첨부파일</div>
@@ -449,11 +509,22 @@
   {% else %}
     <p class="hint">✅ 현재 결재자가 승인/반려 처리할 수 있습니다.</p>
   {% endif %}
-
+  <a class="btn-link" href="/approval/v2/{{ approval.id }}/pdf/" target="_blank">
+  📄 PDF 저장
+  </a>
+  
   <div class="btn-row" style="margin-top:18px;">
     <a class="btn-link" href="/approval/v2/">리스트로 돌아가기</a>
   </div>
 </div>
+
+<!-- ✅ 커스텀 이미지 뷰어 -->
+<div id="imageViewer">
+  <div id="viewerClose">✕</div>
+  <div id="viewerCounter"></div>
+  <img id="viewerImg" src="" alt="viewer">
+</div>
+
 {% endblock %}
 
 {% block extra_script %}
@@ -505,7 +576,6 @@
     });
   }
 
-  // ✅ 반려: 사유 없으면 막고, 사유 있을 때만 disable
   if(rejectForm){
     rejectForm.addEventListener("submit", (e)=>{
       const v = (reasonInput?.value || "").trim();
@@ -521,7 +591,6 @@
     });
   }
 
-  // ✅ 승인: 스피너 + 버튼 잠금
   if(approveForm && approveBtn && approveSpinner){
     approveForm.addEventListener("submit", ()=>{
       approveBtn.disabled = true;
@@ -535,5 +604,213 @@ function toggleLogs(){
   if(!el) return;
   el.style.display = (el.style.display === "none") ? "block" : "none";
 }
+
+/* ===== 소속 자동축소(넘칠 때만) ===== */
+function shrinkDeptIfWrapped(){
+  const el = document.querySelector(".dept-cell");
+  if(!el) return;
+
+  el.style.fontSize = "";
+  const originalSize = parseFloat(getComputedStyle(el).fontSize);
+
+  el.style.whiteSpace = "nowrap";
+
+  if (el.scrollWidth > el.clientWidth) {
+    let size = originalSize;
+    while (el.scrollWidth > el.clientWidth && size > 9) {
+      size -= 1;
+      el.style.fontSize = size + "px";
+    }
+  }
+}
+window.addEventListener("load", shrinkDeptIfWrapped);
+window.addEventListener("resize", shrinkDeptIfWrapped);
+
+/* ===== ✅ 이미지 뷰어: 전체화면 + 스와이프 + 더블탭 줌 + 핀치 줌 + ESC + 1/3 표시 ===== */
+document.addEventListener("DOMContentLoaded", function(){
+
+  const contentArea = document.querySelector(".content-value");
+  if(!contentArea) return;
+
+  const imgs = Array.from(contentArea.querySelectorAll("img"));
+  if(imgs.length === 0) return;
+
+  const viewer = document.getElementById("imageViewer");
+  const viewerImg = document.getElementById("viewerImg");
+  const viewerClose = document.getElementById("viewerClose");
+  const viewerCounter = document.getElementById("viewerCounter");
+
+  let currentIndex = 0;
+
+  // 줌/드래그 상태
+  let scale = 1;
+  let translateX = 0;
+  let translateY = 0;
+
+  // 스와이프
+  let swipeStartX = 0;
+  let swipeStartY = 0;
+
+  // 더블탭
+  let lastTapTime = 0;
+
+  // 핀치
+  let pinchStartDist = null;
+  let pinchStartScale = 1;
+
+  function lockBodyScroll(lock){
+    document.documentElement.style.overflow = lock ? "hidden" : "";
+    document.body.style.overflow = lock ? "hidden" : "";
+  }
+
+  function updateCounter(){
+    viewerCounter.textContent = (currentIndex + 1) + " / " + imgs.length;
+  }
+
+  function applyTransform(){
+    viewerImg.style.transform =
+      "translate(calc(-50% + " + translateX + "px), calc(-50% + " + translateY + "px)) scale(" + scale + ")";
+  }
+
+  function resetTransform(){
+    scale = 1;
+    translateX = 0;
+    translateY = 0;
+    applyTransform();
+  }
+
+  function showImage(idx){
+    currentIndex = idx;
+    viewerImg.src = imgs[currentIndex].src;
+    updateCounter();
+    resetTransform();
+  }
+
+  function openViewer(idx){
+    showImage(idx);
+    viewer.style.display = "block";
+    lockBodyScroll(true);
+  }
+
+  function closeViewer(){
+    viewer.style.display = "none";
+    lockBodyScroll(false);
+  }
+
+  function prev(){
+    showImage((currentIndex - 1 + imgs.length) % imgs.length);
+  }
+  function next(){
+    showImage((currentIndex + 1) % imgs.length);
+  }
+
+  imgs.forEach((img, idx)=>{
+    img.style.cursor = "zoom-in";
+    img.addEventListener("click", ()=> openViewer(idx));
+  });
+
+  viewerClose.addEventListener("click", closeViewer);
+
+  // ESC 닫기
+  document.addEventListener("keydown", (e)=>{
+    if(e.key === "Escape" && viewer.style.display === "block"){
+      closeViewer();
+    }
+    if(viewer.style.display === "block"){
+      if(e.key === "ArrowLeft") prev();
+      if(e.key === "ArrowRight") next();
+    }
+  });
+
+  // 배경 클릭(이미지 제외) 닫기
+  viewer.addEventListener("click", (e)=>{
+    if(e.target === viewer) closeViewer();
+  });
+
+  function dist(t1, t2){
+    const dx = t1.clientX - t2.clientX;
+    const dy = t1.clientY - t2.clientY;
+    return Math.sqrt(dx*dx + dy*dy);
+  }
+
+  viewer.addEventListener("touchstart", (e)=>{
+    if(viewer.style.display !== "block") return;
+
+    if(e.touches.length === 1){
+      swipeStartX = e.touches[0].clientX;
+      swipeStartY = e.touches[0].clientY;
+
+      // 더블탭 감지
+      const now = Date.now();
+      const delta = now - lastTapTime;
+      if(delta > 0 && delta < 300){
+        // 더블탭: 1 <-> 2 배
+        scale = (scale === 1) ? 2 : 1;
+        translateX = 0;
+        translateY = 0;
+        applyTransform();
+        e.preventDefault();
+      }
+      lastTapTime = now;
+    }
+
+    if(e.touches.length === 2){
+      pinchStartDist = dist(e.touches[0], e.touches[1]);
+      pinchStartScale = scale;
+    }
+  }, {passive:false});
+
+  viewer.addEventListener("touchmove", (e)=>{
+    if(viewer.style.display !== "block") return;
+
+    // 핀치 줌
+    if(e.touches.length === 2 && pinchStartDist){
+      const d = dist(e.touches[0], e.touches[1]);
+      const ratio = d / pinchStartDist;
+      scale = Math.min(4, Math.max(1, pinchStartScale * ratio));
+      applyTransform();
+      e.preventDefault();
+      return;
+    }
+
+    // (선택) 확대 상태에서 드래그 이동
+    if(e.touches.length === 1 && scale > 1){
+      const curX = e.touches[0].clientX;
+      const curY = e.touches[0].clientY;
+      const dx = curX - swipeStartX;
+      const dy = curY - swipeStartY;
+
+      translateX += dx * 0.6;
+      translateY += dy * 0.6;
+      applyTransform();
+
+      swipeStartX = curX;
+      swipeStartY = curY;
+      e.preventDefault();
+      return;
+    }
+  }, {passive:false});
+
+  viewer.addEventListener("touchend", (e)=>{
+    if(viewer.style.display !== "block") return;
+
+    // 스와이프 전환 (확대 아닐 때만)
+    if(scale === 1 && e.changedTouches && e.changedTouches.length){
+      const endX = e.changedTouches[0].clientX;
+      const endY = e.changedTouches[0].clientY;
+      const dx = swipeStartX - endX;
+      const dy = swipeStartY - endY;
+
+      // 수평 스와이프만
+      if(Math.abs(dx) > 70 && Math.abs(dx) > Math.abs(dy)){
+        if(dx > 0) next();
+        else prev();
+      }
+    }
+
+    pinchStartDist = null;
+  });
+
+});
 </script>
 {% endblock %}

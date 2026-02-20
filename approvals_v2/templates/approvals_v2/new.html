@@ -74,19 +74,20 @@
 
     <table class="info-table">
       <tr>
-        <th style="width:80px;">결재선</th>
+        <th style="width:70px;">결재선</th>
         <td colspan="3">
           <select name="template_code" id="template_code" required>
             <option value="">선택</option>
             <option value="ADMIN_FINAL">총무전결(담당→총무)</option>
             <option value="NORMAL">일반품의(담당→총무→회장)</option>
             <option value="ADMIN_TO_CHAIR">총무품의(총무→회장)</option>
+            <option value="ADMIN_TO_AUDITOR_CHAIR">총무품의(총무→감사→회장)</option>
           </select>
         </td>
       </tr>
+
+      <!-- ✅ 자리 변경: 성명 -> 소속 -->
       <tr>
-        <th>소속</th>
-        <td><input type="text" name="department" id="deptInput" placeholder="예: (주)대진산업" required></td>
         <th>성명</th>
         <td>
           <select class="form-select" name="name" id="nameSelect" required>
@@ -94,19 +95,27 @@
           </select>
           <div id="nameHint" style="margin-top:4px; font-size:12px; color:#666; display:none;"></div>
         </td>
+
+        <th>소속</th>
+        <td>
+          <input type="text" name="department" id="deptInput"
+                placeholder="성명 선택 시 자동 입력"
+                readonly
+                style="background:#f3f3f3; cursor:not-allowed;">
+        </td>
       </tr>
     </table>
 
     <table class="subject-table">
       <tr>
-        <th>제목</th>
+        <th style="width:70px;">제목</th>
         <td><input type="text" name="title" placeholder="제목을 입력하세요" required></td>
       </tr>
     </table>
 
     <table class="content-table">
       <tr>
-        <th>내용</th>
+        <th style="width:70px;">내용</th>
         <td>
           <div id="contentEditor"
                contenteditable="true"
@@ -117,22 +126,27 @@
       </tr>
     </table>
 
+    <button type="button" class="btn" id="mobileUploadBtn">
+        📷 휴대폰 촬영 업로드
+      </button>
+      <div id="qrBox" style="margin-top:10px;"></div>
+
     <table class="info-table" style="margin-top:-1px;">
       <tr>
-        <th style="width:80px;">첨부</th>
+        <th style="width:70px;">첨부</th>
         <td colspan="3">
           <input type="file" id="attachmentsInput" name="attachments" multiple style="display:none;">
           <button type="button" class="btn" id="addFilesBtn">파일 추가</button>
           <div id="fileList" style="margin-top:6px; font-size:13px; color:#333;"></div>
-          <div style="font-size:12px; color:#666; margin-top:4px;">
-            여러 파일을 추가하려면 “파일 추가”를 여러 번 눌러도 됩니다.
-          </div>
+          <!-- <div style="font-size:12px; color:#666; margin-top:4px;">
+            이미지는 위 내용란에 스크린샷으로 붙여넣기 하면 결재자가 바로 확인 가능
+          </div> -->
         </td>
       </tr>
     </table>
 
     <div class="hint">
-      ✅ 내용 작성란에 이미지 붙여넣기 가능, 상신하면 바로 상세 화면으로 이동합니다.
+      ✅ 이미지는 위 내용란에 스크린샷으로 붙여넣기 하면 결재자가 바로 확인 가능.
     </div>
 
     <div class="btn-row">
@@ -169,21 +183,27 @@
 
   function onTpl(){
     const v = tpl.value;
+
     if(v === "ADMIN_FINAL") renderSign(["기안","총무"]);
     else if(v === "NORMAL") renderSign(["기안","총무","회장"]);
     else if(v === "ADMIN_TO_CHAIR") renderSign(["총무","회장"]);
+    else if(v === "ADMIN_TO_AUDITOR_CHAIR") renderSign(["총무","감사","회장"]);
     else renderSign(["-"]);
+
     syncNameOptions();
   }
   tpl.addEventListener("change", onTpl);
 
-  const DRAFTERS = JSON.parse(document.getElementById("drafters-data").textContent);
-  const ADMINS   = JSON.parse(document.getElementById("admins-data").textContent);
+  const DRAFTERS = JSON.parse(document.getElementById("drafters-data").textContent || "[]");
+  const ADMINS   = JSON.parse(document.getElementById("admins-data").textContent || "[]");
 
   const ADMIN_NAME = "{{ admin_name|default:'' }}";
 
   const nameSelect = document.getElementById("nameSelect");
   const nameHint   = document.getElementById("nameHint");
+  const deptInput  = document.getElementById("deptInput");
+
+  const DEFAULT_ADMIN_DEPT = "(주)새진";
 
   function setNameOptions(list, autoSelectName){
     nameSelect.innerHTML = "";
@@ -199,6 +219,8 @@
       const opt = document.createElement("option");
       opt.value = u.name;
       opt.textContent = u.name;
+      // ✅ views에서 department 내려주면 여기로 들어옴
+      opt.dataset.dept = (u.department || "");
       nameSelect.appendChild(opt);
     });
 
@@ -212,30 +234,61 @@
     }
   }
 
-  const deptInput = document.getElementById("deptInput");
-  const DEFAULT_ADMIN_DEPT = "(주)새진";
+  function syncDeptBySelectedName(){
+    if (!deptInput || !nameSelect) return;
+
+    const opt = nameSelect.options[nameSelect.selectedIndex];
+    const dept = (opt && opt.dataset) ? (opt.dataset.dept || "") : "";
+
+    // ✅ 값이 있으면 그대로, 없으면 빈칸
+    deptInput.value = dept;
+  }
+
+  if (nameSelect) {
+    nameSelect.addEventListener("change", syncDeptBySelectedName);
+  }
 
   function syncNameOptions(){
     const v = tpl.value;
 
-    if (v === "ADMIN_TO_CHAIR") {
+    // 총무 시작 템플릿: 총무만 노출 + 자동 선택
+    if (v === "ADMIN_TO_CHAIR" || v === "ADMIN_TO_AUDITOR_CHAIR") {
       setNameOptions(ADMINS, ADMIN_NAME || (ADMINS[0] ? ADMINS[0].name : ""));
-      nameHint.style.display = "block";
+      if (nameHint) nameHint.style.display = "block";
 
+      // ✅ 자동선택된 총무 기준으로 dept 채우기
+      syncDeptBySelectedName();
+
+      // ✅ 그래도 dept가 비어있으면 기본값
       if (deptInput && !deptInput.value.trim()) {
         deptInput.value = DEFAULT_ADMIN_DEPT;
       }
-    } else if (v === "ADMIN_FINAL" || v === "NORMAL") {
+      return;
+    }
+
+    // 담당 시작 템플릿: 담당만 노출
+    if (v === "ADMIN_FINAL" || v === "NORMAL") {
       setNameOptions(DRAFTERS, "");
-      nameHint.style.display = "none";
-      nameHint.textContent = "";
-    } else {
-      setNameOptions(DRAFTERS, "");
+      if (nameHint){
+        nameHint.style.display = "none";
+        nameHint.textContent = "";
+      }
+
+      // ✅ 담당 선택 전이므로 소속은 비움
+      if (deptInput) deptInput.value = "";
+      return;
+    }
+
+    // 결재선 선택 전(기본)
+    setNameOptions(DRAFTERS, "");
+    if (nameHint){
       nameHint.style.display = "none";
       nameHint.textContent = "";
     }
+    if (deptInput) deptInput.value = "";
   }
 
+  // 초기 렌더
   onTpl();
 
   // contenteditable -> hidden
@@ -321,5 +374,71 @@
     });
     renderFileList();
   }
+
+    // ====== 모바일 업로드 QR + 폴링 (안전버전) ======
+  (function(){
+    const btn = document.getElementById("mobileUploadBtn");
+    const qrBox = document.getElementById("qrBox");
+    const editor = document.getElementById("contentEditor");
+
+    if(!btn || !qrBox || !editor){
+      console.error("mobile upload dom missing", {btn, qrBox, editor});
+      return;
+    }
+
+    // ✅ randomUUID 안전하게 (없으면 fallback)
+    function makeToken(){
+      try{
+        if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+      }catch(e){}
+      return "tok-" + Date.now() + "-" + Math.random().toString(16).slice(2);
+    }
+
+    const uploadToken = makeToken();
+    let lastImageUrl = ""; // ✅ 중복삽입 방지
+
+    btn.addEventListener("click", () => {
+      const url = window.location.origin + "/approval/v2/mobile-upload/" + uploadToken + "/";
+
+      const qrImgUrl =
+        "https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=" +
+        encodeURIComponent(url);
+
+      qrBox.innerHTML = `
+        <div style="display:flex; gap:12px; align-items:flex-start; flex-wrap:wrap;">
+          <img src="${qrImgUrl}" alt="QR" style="width:180px; height:180px; border:1px solid #ddd; background:#fff;">
+          <div style="font-size:12px; color:#333; max-width:360px; word-break:break-all;">
+            <div style="font-weight:700; margin-bottom:6px;">휴대폰으로 QR을 찍어 업로드</div>
+            <div style="margin-bottom:6px;">URL:</div>
+            <div style="padding:8px; border:1px dashed #bbb; border-radius:8px; background:#fafafa;">${url}</div>
+            <div style="margin-top:8px; color:#666;">※ 같은 Wi-Fi에서 접속되어야 합니다.</div>
+          </div>
+        </div>
+      `;
+    });
+
+    setInterval(() => {
+      fetch(`/approval/v2/mobile-upload/${uploadToken}/poll/`, { cache: "no-store" })
+        .then(r => r.ok ? r.json() : null)
+        .then(data => {
+          if(!data || !data.image_url) return;
+
+          if(data.image_url === lastImageUrl) return;
+          lastImageUrl = data.image_url;
+
+          const img = document.createElement("img");
+          img.src = data.image_url;
+          img.style.maxWidth = "100%";
+          img.style.height = "auto";
+          img.style.display = "block";
+          img.style.margin = "6px 0";
+          editor.appendChild(img);
+        })
+        .catch(() => {});
+    }, 3000);
+  })();
+
+
+
 </script>
 {% endblock %}

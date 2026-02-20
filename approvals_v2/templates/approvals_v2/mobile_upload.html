@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>휴대폰 사진 업로드</title>
+  <style>
+    body{font-family:-apple-system,BlinkMacSystemFont,"맑은 고딕",sans-serif;margin:18px;}
+    .box{max-width:520px;margin:0 auto;}
+    .card{border:1px solid #ddd;border-radius:12px;padding:14px;background:#fff;}
+    .btn{width:100%;padding:12px 14px;border-radius:10px;border:1px solid #333;background:#111;color:#fff;font-weight:800;font-size:16px;}
+    .hint{font-size:13px;color:#666;margin-top:10px;line-height:1.5;}
+    .ok{margin-top:12px;font-weight:800;color:#0a7c1f;display:none;}
+  </style>
+</head>
+<body>
+  <div class="box">
+    <div class="card">
+      <div style="font-weight:900;font-size:18px;">📷 휴대폰 사진 업로드</div>
+      <div class="hint">
+        업로드하면 PC 작성 화면에 자동으로 이미지가 붙습니다.<br>
+        (같은 Wi-Fi에서 접속 중이어야 합니다)
+      </div>
+
+      <form id="f" method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+
+        <!-- ✅ 실제 파일 input은 숨김 -->
+        <input id="img" type="file" name="image" accept="image/*" capture="environment" style="display:none;">
+
+        <!-- ✅ 사진 촬영 버튼(이 버튼을 누르면 카메라가 열림) -->
+        <button type="button" class="btn" id="openCameraBtn">📷 사진 촬영</button>
+
+        <!-- ✅ 선택/촬영된 파일명 표시 -->
+        <div id="fileName" class="hint" style="margin-top:10px;"></div>
+
+        <!-- ✅ 업로드 버튼 -->
+        <button class="btn" type="submit" style="margin-top:12px; background:#1f6feb; border-color:#1f6feb;">
+            업로드
+        </button>
+      </form>
+
+
+      <div id="ok" class="ok">✅ 업로드 완료! PC 화면을 확인하세요.</div>
+    </div>
+  </div>
+
+<script>
+  const form = document.getElementById("f");
+  const ok = document.getElementById("ok");
+  const input = document.getElementById("img");
+  const openBtn = document.getElementById("openCameraBtn");
+  const fileName = document.getElementById("fileName");
+
+  // ✅ 버튼 누르면 카메라/사진선택 열기
+  openBtn.addEventListener("click", () => input.click());
+
+  // ✅ 파일 선택되면 파일명 표시
+  input.addEventListener("change", () => {
+    const f = input.files && input.files[0];
+    fileName.textContent = f ? `선택됨: ${f.name}` : "";
+  });
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    const f = input.files && input.files[0];
+    if(!f){ alert("사진을 촬영해주세요."); return; }
+
+    const fd = new FormData(form);
+
+    const res = await fetch(location.pathname, { method:"POST", body: fd });
+    if(res.ok){
+      ok.style.display = "block";
+    }else{
+      alert("업로드 실패");
+    }
+  });
+</script>
+
+</body>
+</html>

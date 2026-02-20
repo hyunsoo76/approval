@@ -1,0 +1,364 @@
+{% load static %}
+{% load tz %}
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <title>품의서 #{{ approval.id }} - {{ approval.title }}</title>
+  <style>
+    /* ===== 페이지 기본 ===== */
+    @page {
+      size: A4;
+      margin: 14mm 12mm;
+
+      /* WeasyPrint 페이지 번호 */
+      @bottom-right {
+        content: "Page " counter(page) " / " counter(pages);
+        font-size: 10px;
+        color: #666;
+      }
+      @bottom-left {
+        content: "내쇼날새천년 전자결재";
+        font-size: 10px;
+        color: #666;
+      }
+    }
+
+    * { box-sizing: border-box; }
+    body{
+      font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "맑은 고딕", sans-serif;
+      font-size: 12px;
+      color: #111;
+      margin: 0;
+    }
+
+    /* 찢김 방지 */
+    table, tr, td, th { page-break-inside: avoid; }
+    .no-break { page-break-inside: avoid; break-inside: avoid; }
+
+    /* ===== 헤더 ===== */
+    .topbar{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      margin-bottom: 10px;
+      padding-bottom: 8px;
+      border-bottom: 2px solid #111;
+    }
+    .brand{
+      display:flex;
+      align-items:center;
+      gap:10px;
+    }
+    .brand img{ height: 26px; width: auto; }
+    .brand .t1{ font-weight: 900; font-size: 14px; line-height: 1.1; }
+    .brand .t2{ font-weight: 700; font-size: 11px; color:#444; margin-top:2px; }
+
+    .docmeta{
+      text-align:right;
+      font-size: 11px;
+      color:#333;
+      line-height: 1.4;
+      white-space: nowrap;
+    }
+    .docmeta b{ color:#111; }
+
+    /* ===== 타이틀 ===== */
+    .title{
+      text-align:center;
+      font-size: 22px;
+      font-weight: 900;
+      letter-spacing: 0.35em;
+      margin: 12px 0 10px;
+    }
+
+    /* ===== 결재란 ===== */
+    .sign-wrap{
+      display:flex;
+      justify-content:flex-end;
+      margin-top: -40px; /* 타이틀과 같이 보이게 살짝 끌어올림 (원치 않으면 0으로) */
+      margin-bottom: 12px;
+    }
+    .sign-table{
+      border-collapse: collapse;
+      border:1px solid #111;
+      table-layout: fixed;
+      background:#fff;
+      font-size: 11px;
+    }
+    .sign-table th, .sign-table td{
+      border:1px solid #111;
+      width: 78px;
+      text-align:center;
+      vertical-align: middle;
+      padding: 0;
+    }
+    .sign-table th{
+      background:#efefef;
+      height: 22px;
+      font-weight: 800;
+    }
+    .sign-table td{
+      height: 54px;
+    }
+    .sign-time td{
+      height: 22px;
+      background:#efefef;
+      font-size: 10px;
+      color:#333;
+    }
+    .stamp-img{
+      display:block;
+      max-width: 64px;
+      max-height: 44px;
+      margin: 0 auto;
+    }
+    .stamp-svg-wrap{
+      width: 54px;
+      height: 54px;
+      margin: 0 auto;
+      color: #d60000;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+    }
+    .stamp-svg{ width:100%; height:100%; display:block; }
+
+    /* ===== 본문 표 ===== */
+    .table{
+      width:100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+      margin-bottom: 10px;
+    }
+    .table th, .table td{
+      border:1px solid #111;
+      padding: 7px 8px;
+      vertical-align: top;
+    }
+    .table th{
+      width: 70px;
+      text-align:center;
+      background:#f6f6f6;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    /* ===== 내용 ===== */
+    .content{
+      min-height: 140mm;
+    }
+    .content-value{
+      white-space: pre-wrap;
+      word-break: break-word;
+      overflow-wrap: anywhere;
+      line-height: 1.6;
+      font-size: 12px;
+    }
+
+    /* ✅ 이미지: 찢김 방지 + 크기 제한(너무 길어지는 것 완화) */
+    .content-value img{
+      max-width: 100% !important;
+      height: auto !important;
+      max-height: 240mm;         /* A4 세로에서 여백 제외 정도 */
+      object-fit: contain;
+      display:block;
+      margin: 8px 0;
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+
+    /* 표가 들어와도 튀지 않게 */
+    .content-value table{
+      width:100% !important;
+      table-layout: fixed;
+      border-collapse: collapse;
+      page-break-inside: avoid;
+    }
+    .content-value th, .content-value td{
+      border:1px solid #999;
+      padding: 4px;
+      word-break: break-word;
+      overflow-wrap: anywhere;
+    }
+
+    /* ===== 첨부 ===== */
+    .attach-box{
+      border:1px solid #111;
+      padding: 10px;
+      background:#fafafa;
+    }
+    .attach-title{
+      font-weight: 900;
+      margin-bottom: 6px;
+    }
+    .attach-list{
+      margin:0;
+      padding-left: 16px;
+    }
+    .attach-list li{
+      margin: 4px 0;
+      line-height: 1.4;
+    }
+    .attach-meta{
+      font-size: 10px;
+      color:#666;
+      margin-left: 6px;
+    }
+
+    /* 링크(첨부 URL 등) */
+    a { color:#111; text-decoration: underline; }
+  </style>
+</head>
+
+<body>
+  <!-- 상단바 -->
+  <div class="topbar no-break">
+    <div class="brand">
+      {# 도장 이미지 있으면 사용: 없으면 favicon으로 대체 #}
+      <img src="{% static 'img/saecheon_stamp.png' %}" alt="stamp">
+      <div>
+        <div class="t1">내쇼날새천년</div>
+        <div class="t2">전자결재 · 출력본(PDF)</div>
+      </div>
+    </div>
+
+    <div class="docmeta">
+      <div><b>문서번호</b> #{{ approval.id }}</div>
+      <div><b>작성일</b> {{ approval.created_at|localtime|date:"Y-m-d H:i" }}</div>
+      {% if route.status == "completed" %}
+        <div><b>완료</b> {{ route.completed_at|date:"Y-m-d H:i"|default:"-" }}</div>
+      {% elif route.status == "rejected" %}
+        <div><b>반려</b> {{ route.rejected_at|date:"Y-m-d H:i"|default:"-" }}</div>
+      {% else %}
+        <div><b>상태</b> 진행중</div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- 타이틀 -->
+  <div class="title no-break">품 의 서</div>
+
+  <!-- 결재란 -->
+  <div class="sign-wrap no-break">
+    <table class="sign-table">
+      <tr>
+        {% for s in steps %}
+          <th>
+            {% if s.role == "drafter" %}기안
+            {% elif s.role == "admin" %}총무
+            {% elif s.role == "auditor" %}감사
+            {% elif s.role == "chairman" %}회장
+            {% else %}{{ s.role }}{% endif %}
+          </th>
+        {% endfor %}
+      </tr>
+
+      <tr>
+        {% for s in steps %}
+          <td>
+            {% if s.state == "approved" %}
+              {% if s.stamp_image %}
+                <img src="{{ s.stamp_image.url }}" class="stamp-img" alt="stamp">
+              {% else %}
+                <div class="stamp-svg-wrap">
+                  {% if route.template_code == "ADMIN_FINAL" and s.role == "admin" %}
+                    <svg viewBox="0 0 120 120" class="stamp-svg" aria-label="전결">
+                      <rect x="10" y="10" width="100" height="100" fill="none" stroke="currentColor" stroke-width="6"/>
+                      <text x="60" y="50" text-anchor="middle" font-size="22" font-weight="900" fill="currentColor">전결</text>
+                      <text x="60" y="80" text-anchor="middle" font-size="22" font-weight="900" fill="currentColor">승인</text>
+                    </svg>
+                  {% else %}
+                    <svg viewBox="0 0 120 120" class="stamp-svg" aria-label="승인">
+                      <rect x="10" y="10" width="100" height="100" fill="none" stroke="currentColor" stroke-width="6"/>
+                      <text x="60" y="52" text-anchor="middle" font-size="22" font-weight="900" fill="currentColor">승인</text>
+                      <text x="60" y="82" text-anchor="middle" font-size="18" font-weight="900" fill="currentColor">
+                        {% if s.role == "drafter" %}기안{% elif s.role == "admin" %}총무{% elif s.role == "auditor" %}감사{% elif s.role == "chairman" %}회장{% else %}{{ s.role }}{% endif %}
+                      </text>
+                    </svg>
+                  {% endif %}
+                </div>
+              {% endif %}
+
+            {% elif s.state == "rejected" %}
+              <img src="{% static 'img/reject_img.jpg' %}" class="stamp-img" alt="반려">
+
+            {% else %}
+              &nbsp;
+            {% endif %}
+          </td>
+        {% endfor %}
+      </tr>
+
+      <tr class="sign-time">
+        {% for s in steps %}
+          <td>
+            {% if s.acted_at %}
+              {{ s.acted_at|localtime|date:"n/j H:i" }}
+            {% else %}
+              &nbsp;
+            {% endif %}
+          </td>
+        {% endfor %}
+      </tr>
+    </table>
+  </div>
+
+  <!-- 기본 정보 -->
+  <table class="table no-break">
+    <tr>
+      <th>소속</th><td>{{ approval.department }}</td>
+      <th>성명</th><td>{{ approval.name }}</td>
+    </tr>
+  </table>
+
+  <table class="table no-break">
+    <tr>
+      <th>제목</th>
+      <td>{{ approval.title }}</td>
+    </tr>
+  </table>
+
+  <!-- 내용 -->
+  <table class="table">
+    <tr>
+      <th>내용</th>
+      <td class="content">
+        <div class="content-value">{{ approval.content|safe }}</div>
+      </td>
+    </tr>
+  </table>
+
+  <!-- 반려 사유(있을 때만) -->
+  {% for s in steps %}
+    {% if s.state == "rejected" and s.reject_reason %}
+      <table class="table no-break">
+        <tr>
+          <th>반려</th>
+          <td>
+            <b>
+              {% if s.role == "drafter" %}기안{% elif s.role == "admin" %}총무{% elif s.role == "auditor" %}감사{% elif s.role == "chairman" %}회장{% else %}{{ s.role }}{% endif %}
+            </b><br>
+            <div style="margin-top:6px; white-space:pre-wrap;">{{ s.reject_reason }}</div>
+          </td>
+        </tr>
+      </table>
+    {% endif %}
+  {% endfor %}
+
+  <!-- 첨부 -->
+  {% if approval.v2_attachments.all %}
+    <div class="attach-box no-break">
+      <div class="attach-title">📎 첨부파일</div>
+      <ul class="attach-list">
+        {% for f in approval.v2_attachments.all %}
+          <li>
+            {{ f.original_name|default:f.file.name }}
+            <span class="attach-meta">{{ f.uploaded_at|date:"Y-m-d H:i" }}</span>
+          </li>
+        {% endfor %}
+      </ul>
+    </div>
+  {% endif %}
+</body>
+</html>

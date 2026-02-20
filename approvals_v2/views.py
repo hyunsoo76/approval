@@ -12,6 +12,15 @@ from approvals_v2.routes import (
     reject_current_step,
 )
 from approvals_v2.notifications import dispatch_notifications
+from django.http import JsonResponse, HttpResponse
+from django.http import JsonResponse
+from django.shortcuts import render
+from django.views.decorators.csrf import csrf_exempt
+from django.core.files.storage import default_storage
+from django.utils import timezone
+from django.http import HttpResponse
+from django.template.loader import render_to_string
+import os
 
 
 def v2_list(request):
@@ -88,22 +97,37 @@ def v2_new(request):
     ).order_by("name").first()
     admin_name = admin_rec.name if admin_rec else ""
 
+        # ✅ 총무 이름(ADMIN) 1명 기준
+    admin_obj = TelegramRecipient.objects.filter(
+        is_active=True,
+        role=TelegramRecipient.ROLE_ADMIN,
+    ).order_by("id").first()
+    admin_name = admin_obj.name if admin_obj else ""
+
+
     if request.method == "GET":
-        # ✅ 담당 목록(드롭다운 기본용)
+        # ✅ 담당 목록 (소속 포함)
         drafters = list(
             TelegramRecipient.objects.filter(
                 is_active=True,
                 role=TelegramRecipient.ROLE_DRAFTER,
-            ).order_by("name").values("role", "name")
+            )
+            .order_by("name")
+            .values("role", "name", "department")   # ✅ department 추가
         )
 
-        # ✅ 총무 목록(보통 1명)
+        # ✅ 총무 목록 (소속 포함)
         admins = list(
             TelegramRecipient.objects.filter(
                 is_active=True,
                 role=TelegramRecipient.ROLE_ADMIN,
-            ).order_by("name").values("role", "name")
+            )
+            .order_by("name")
+            .values("role", "name", "department")   # ✅ department 추가
         )
+
+        # 총무 기본 이름 (없으면 빈문자열)
+        admin_name = admins[0]["name"] if admins else ""
 
         return render(
             request,
@@ -125,12 +149,17 @@ def v2_new(request):
     if not all([template_code, department, title, content]):
         return HttpResponse("필수값 누락", status=400)
 
-    if template_code == "ADMIN_TO_CHAIR":
+    # ✅ 총무 시작 템플릿들
+    ADMIN_START_TEMPLATES = {"ADMIN_TO_CHAIR", "ADMIN_TO_AUDITOR_CHAIR"}
+
+    if template_code in ADMIN_START_TEMPLATES:
         if not admin_name:
             return HttpResponse("총무 계정이 설정되어 있지 않습니다.", status=400)
+        # ✅ 성명/소속 강제
         name = admin_name
-        department = "(주)새진"  # ✅ 소속도 강제 고정
+        department = "(주)새진"
     else:
+        # ✅ 담당 시작 라인에서는 총무 선택 금지
         if admin_name and name == admin_name:
             return HttpResponse("담당부터 시작하는 결재라인에서는 총무를 성명으로 선택할 수 없습니다.", status=400)
         if not name:
@@ -144,6 +173,7 @@ def v2_new(request):
         submit_ip=request.META.get("REMOTE_ADDR", ""),
     )
 
+
     files = request.FILES.getlist("attachments")
     print("FILES:", len(files), [f.name for f in files])
     for f in files:
@@ -155,8 +185,8 @@ def v2_new(request):
 
     route = build_route_for_approval(approval=approval, template_code=template_code)
 
-    # ✅ ADMIN_TO_CHAIR 상신 즉시 총무 자동승인
-    if route.template_code == "ADMIN_TO_CHAIR":
+        # ✅ 총무 시작 템플릿이면 상신 즉시 '총무' 단계 자동 승인 처리
+    if route.template_code in ("ADMIN_TO_CHAIR", "ADMIN_TO_AUDITOR_CHAIR"):
         current_role = get_current_actor_role(route)
         if current_role == "admin":
             approve_current_step(
@@ -359,3 +389,70 @@ def v2_test_reject(request, pk: int):
     )
 
     return HttpResponse(f"rejected actor={step.role} dispatch={result}")
+
+# ✅ 임시 메모리 저장소(로컬 테스트용)
+# - 서버 재시작하면 사라짐
+MOBILE_UPLOAD_STORE = {}  # token -> {"image_url": "...", "ts": ...}
+
+MOBILE_UPLOAD_STORE = {}  # token -> {"image_url": "...", "ts": ...}
+
+@csrf_exempt
+def mobile_upload_page(request, token: str):
+    if request.method == "GET":
+        return render(request, "approvals_v2/mobile_upload.html", {"token": token})
+
+    # POST: 이미지 저장
+    f = request.FILES.get("image")
+    if not f:
+        return JsonResponse({"ok": False, "error": "no file"}, status=400)
+
+    # ✅ media에 저장 (기본 MEDIA_ROOT/URL 설정 필요)
+    path = default_storage.save(f"mobile_upload/{token}/{f.name}", f)
+    url = default_storage.url(path)
+
+    MOBILE_UPLOAD_STORE[token] = {"image_url": url, "ts": timezone.now().isoformat()}
+    return JsonResponse({"ok": True, "image_url": url})
+
+def mobile_upload_poll(request, token: str):
+    """
+    PC에서 폴링하는 API
+    """
+    data = MOBILE_UPLOAD_STORE.get(token) or {}
+    return JsonResponse({"image_url": data.get("image_url", "")})
+
+from django.http import HttpResponse
+from django.template.loader import render_to_string
+
+def approval_pdf(request, pk):
+    # ✅ 여기서만 import (서버 시작 시점 import로 죽는 것 방지)
+    from weasyprint import HTML
+    from approvals.models import ApprovalRequest
+
+    approval = ApprovalRequest.objects.get(pk=pk)
+    route = getattr(approval, "route_v2", None)
+
+    # ✅ 순서 보장
+    steps = route.steps.all().order_by("order") if route else []
+
+    # ✅ 템플릿 파일명은 네가 쓰는대로 유지/변경 둘 다 가능
+    #    - 내가 준 새 템플릿을 쓰려면 "approvals_v2/pdf.html"
+    #    - 기존 파일명을 유지하려면 아래를 "approvals_v2/pdf_template.html" 그대로 두면 됨
+    html_string = render_to_string(
+        "approvals_v2/pdf_template.html",
+        {
+            "approval": approval,
+            "route": route,
+            "steps": steps,
+        },
+        request=request,  # ✅ 중요
+    )
+
+    pdf_bytes = HTML(
+        string=html_string,
+        base_url=request.build_absolute_uri("/"),
+    ).write_pdf()
+
+    filename = f"approval_{approval.id}.pdf"
+    response = HttpResponse(pdf_bytes, content_type="application/pdf")
+    response["Content-Disposition"] = f'inline; filename="{filename}"'
+    return response
