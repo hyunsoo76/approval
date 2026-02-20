@@ -47,10 +47,11 @@ class ApprovalRouteStepInstanceAdmin(admin.ModelAdmin):
 
 @admin.register(ApprovalAttachment)
 class ApprovalAttachmentAdmin(admin.ModelAdmin):
-    list_display = ("id", "approval_id", "original_name", "created_at")
-    search_fields = ("original_name", "approval_id")
-    ordering = ("-created_at",)
-    readonly_fields = ("created_at",)
+    list_display = ("id", "approval_id", "original_name", "file", "uploaded_at")
+    search_fields = ("original_name", "approval__id")
+    ordering = ("-uploaded_at",)
+    readonly_fields = ("uploaded_at",)
+    list_select_related = ("approval",)
 
 
 @admin.register(TempUploadImage)
