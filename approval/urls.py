@@ -9,7 +9,7 @@ from django.contrib.staticfiles.urls import staticfiles_urlpatterns
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', include('approvals.urls')),  # approvals/urls.py의 ''가 루트가 됨
-    path("approval/v2/", include("approvals_v2.urls")),
+    path("v2/", include("approvals_v2.urls")),
 ]
 
 
