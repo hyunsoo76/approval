@@ -28,6 +28,7 @@ def _send_message(*, chat_id: str, text: str) -> bool:
             data={"chat_id": chat_id, "text": text},
             timeout=5,
         )
+        print(f"🔥 TG_HTTP status={r.status_code} body={r.text[:300]}")
         if r.status_code != 200:
             print(f"⚠️ [TG] sendMessage HTTP {r.status_code}: {r.text[:200]}")
             return False
@@ -45,6 +46,11 @@ def send_dm(chat_id: str, text: str) -> bool:
     """
     v2 전용 DM 발송.
     """
+    print("🔥 TG_RUNTIME_ENV:",
+      "BOT=", bool(os.environ.get("TELEGRAM_BOT_TOKEN")),
+      "GRP=", bool(os.environ.get("TELEGRAM_GROUP_CHAT_ID")),
+      "CHAT=", bool(os.environ.get("TELEGRAM_CHAT_ID")))
+    
     print(f"📩 [DM] to={chat_id} text={text}")
     ok = _send_message(chat_id=str(chat_id).strip(), text=text)
     return ok
@@ -54,6 +60,11 @@ def send_group(text: str) -> bool:
     """
     v2 전용 단톡방 발송.
     """
+    print("🔥 TG_RUNTIME_ENV:",
+      "BOT=", bool(os.environ.get("TELEGRAM_BOT_TOKEN")),
+      "GRP=", bool(os.environ.get("TELEGRAM_GROUP_CHAT_ID")),
+      "CHAT=", bool(os.environ.get("TELEGRAM_CHAT_ID")))
+    
     group_chat_id = _env("TELEGRAM_GROUP_CHAT_ID")
     print(f"📣 [GROUP] to={group_chat_id or '(missing TELEGRAM_GROUP_CHAT_ID)'} text={text}")
     ok = _send_message(chat_id=group_chat_id, text=text)
