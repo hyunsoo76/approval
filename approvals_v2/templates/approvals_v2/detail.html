@@ -214,6 +214,26 @@
   }
   .log-line{ margin-top:4px; }
 
+  /* ✅ (추가) 완료영역 액션 스택: 로그/버튼 겹침 방지 */
+  .action-stack{
+    margin-top:10px;
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+    justify-content:flex-end;
+  }
+  @media (max-width:480px){
+    .action-stack{
+      flex-direction:column;
+      align-items:stretch;
+      justify-content:flex-start;
+    }
+    .action-stack .btn-link{
+      width:100%;
+      text-align:center;
+    }
+  }
+
   /* ===== 결재 모달 버튼(아웃라인) ===== */
   .modal-action-btn{
     width:100%;
@@ -483,7 +503,13 @@
       <div class="done-msg-left">✅ 결재가 최종 완료되었습니다.</div>
       <div class="done-msg-right">
         <div>완료 시각: {{ route.completed_at|date:"Y-m-d H:i"|default:"-" }}</div>
-        <div class="log-toggle" onclick="toggleLogs()">🔎 승인자 로그 보기</div>
+
+        <!-- ✅ (수정) 로그보기 + PDF 버튼을 같은 스택으로 묶어서 모바일 겹침 방지 -->
+        <div class="action-stack">
+          <div class="log-toggle" onclick="toggleLogs()">🔎 승인자 로그 보기</div>
+          <a class="btn-link" href="/approval/v2/{{ approval.id }}/pdf/" target="_blank">📄 PDF 저장</a>
+        </div>
+
         <div id="logBox" class="log-box" style="display:none;">
           <div><b>상신 IP</b>: {{ approval.submit_ip|default:"-" }}</div>
           {% for s in steps %}
@@ -509,9 +535,13 @@
   {% else %}
     <p class="hint">✅ 현재 결재자가 승인/반려 처리할 수 있습니다.</p>
   {% endif %}
-  <a class="btn-link" href="/approval/v2/{{ approval.id }}/pdf/" target="_blank">
-  📄 PDF 저장
-  </a>
+
+  <!-- ✅ (수정) 완료가 아닐 때만 기존 위치에 PDF 버튼 유지 -->
+  {% if route.status != "completed" %}
+    <a class="btn-link" href="/approval/v2/{{ approval.id }}/pdf/" target="_blank">
+      📄 PDF 저장
+    </a>
+  {% endif %}
   
   <div class="btn-row" style="margin-top:18px;">
     <a class="btn-link" href="/approval/v2/">리스트로 돌아가기</a>
