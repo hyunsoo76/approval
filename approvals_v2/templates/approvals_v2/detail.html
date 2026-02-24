@@ -507,7 +507,7 @@
         <!-- ✅ (수정) 로그보기 + PDF 버튼을 같은 스택으로 묶어서 모바일 겹침 방지 -->
         <div class="action-stack">
           <div class="log-toggle" onclick="toggleLogs()">🔎 승인자 로그 보기</div>
-          <a class="btn-link" href="/approval/v2/{{ approval.id }}/pdf/" target="_blank">📄 PDF 저장</a>
+          <a class="btn-link" href="/approval/v2/{{ approval.id }}/pdf/?download=1" target="_blank">📄 PDF 저장</a>
         </div>
 
         <div id="logBox" class="log-box" style="display:none;">
@@ -538,7 +538,7 @@
 
   <!-- ✅ (수정) 완료가 아닐 때만 기존 위치에 PDF 버튼 유지 -->
   {% if route.status != "completed" %}
-    <a class="btn-link" href="/approval/v2/{{ approval.id }}/pdf/" target="_blank">
+    <a class="btn-link" href="/approval/v2/{{ approval.id }}/pdf/?download=1" target="_blank">
       📄 PDF 저장
     </a>
   {% endif %}
