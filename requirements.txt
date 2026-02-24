@@ -2,3 +2,5 @@ Django==4.2.27
 asgiref>=3.7,<4
 gunicorn
 Pillow
+weasyprint==60.2
+pydyf==0.10.0
