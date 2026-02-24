@@ -454,5 +454,7 @@ def approval_pdf(request, pk):
 
     filename = f"approval_{approval.id}.pdf"
     response = HttpResponse(pdf_bytes, content_type="application/pdf")
-    response["Content-Disposition"] = f'inline; filename="{filename}"'
+    download = request.GET.get("download") == "1"
+    disposition = "attachment" if download else "inline"
+    response["Content-Disposition"] = f'{disposition}; filename="{filename}"'
     return response
