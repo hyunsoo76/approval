@@ -239,10 +239,18 @@ def v2_approve(request, pk: int):
 
     # 승인 알림
     should_notify = False
+
     if route.template_code == "ADMIN_FINAL":
+        # 총무 전결 승인 시에만
         should_notify = (step.role == "admin")
+
     elif route.template_code in ("NORMAL", "ADMIN_TO_CHAIR"):
+        # 총무/회장 승인 알림
         should_notify = (step.role in ("admin", "chairman"))
+
+    elif route.template_code == "ADMIN_TO_AUDITOR_CHAIR":
+        # ✅ 총무-감사-회장: 감사/회장 승인 알림 (원하면 admin도 포함 가능)
+        should_notify = (step.role in ("auditor", "chairman"))
 
     if should_notify:
         dispatch_notifications(
