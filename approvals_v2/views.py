@@ -1,28 +1,88 @@
 from django.conf import settings
-from django.http import Http404, HttpResponse
+from django.core.files.storage import default_storage
+from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import render, redirect
+from django.template.loader import render_to_string
+from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
-from approvals_v2.models import ApprovalAttachment
+
 from approvals.models import ApprovalRequest
-from approvals_v2.models import TelegramRecipient
+from approvals_v2.models import ApprovalAttachment, TelegramRecipient
+from approvals_v2.notifications import dispatch_notifications
 from approvals_v2.routes import (
     build_route_for_approval,
     approve_current_step,
     get_current_actor_role,
     reject_current_step,
 )
-from approvals_v2.notifications import dispatch_notifications
-from django.http import JsonResponse, HttpResponse
-from django.http import JsonResponse
-from django.shortcuts import render
-from django.views.decorators.csrf import csrf_exempt
-from django.core.files.storage import default_storage
-from django.utils import timezone
-from django.http import HttpResponse
-from django.template.loader import render_to_string
-import os
 
 
+# =========================
+# ✅ 텔레그램 메시지 포맷
+# =========================
+ROLE_KR = {
+    "drafter": "담당",
+    "admin": "총무",
+    "auditor": "감사",
+    "chairman": "회장",
+}
+
+
+def role_kr(role: str) -> str:
+    return ROLE_KR.get(role or "", role or "")
+
+
+def fmt_submit_date(dt):
+    dt = timezone.localtime(dt)
+    return f"{dt.year}년 {dt.month}월 {dt.day}일"
+
+
+def last_approver_role(route):
+    """
+    drafter 제외하고 결재라인 마지막 role 반환
+    """
+    if not route:
+        return ""
+    last = route.steps.exclude(role="drafter").order_by("-order").first()
+    return last.role if last else ""
+
+
+def drafter_role_kr_by_template(template_code: str) -> str:
+    """
+    기안자는 '이름'이 아니라 '역할'로만 표시
+    - 총무 시작 템플릿: 총무
+    - 그 외: 담당
+    """
+    admin_start = {"ADMIN_TO_CHAIR", "ADMIN_TO_AUDITOR_CHAIR"}
+    return "총무" if template_code in admin_start else "담당"
+
+
+def build_tg_text(*, kind: str, approval, route, template_code: str, actor_role: str, actor_action_kr: str, request):
+    """
+    kind: submit / approve / reject
+    actor_action_kr: 승인/반려 (approve/reject일 때만 사용)
+    """
+    base_url = request.build_absolute_uri(f"/approval/v2/{approval.id}/")
+
+    lines = []
+    lines.append("내쇼날새천년 전자결재")
+    lines.append(f"상신일 : {fmt_submit_date(approval.created_at)}")
+    lines.append(f"제목 : {approval.title}")
+    lines.append(f"기안자 : {drafter_role_kr_by_template(template_code)}")
+
+    if kind in {"approve", "reject"}:
+        last_role = last_approver_role(route)
+        actor_role_kr = role_kr(actor_role)
+        label = "최종승인" if (actor_role == last_role) else "승인자"
+        lines.append(f"{label} : {actor_role_kr}[{actor_action_kr}]")
+
+    lines.append(f"바로가기 : {base_url}")
+    return "\n".join(lines)
+
+
+# =========================
+# v2 list
+# =========================
 def v2_list(request):
     """
     v2 문서 리스트
@@ -39,6 +99,7 @@ def v2_list(request):
 
     if q:
         from django.db.models import Q
+
         qs = qs.filter(
             Q(title__icontains=q) |
             Q(department__icontains=q) |
@@ -90,20 +151,16 @@ def v2_list(request):
     )
 
 
+# =========================
+# v2 new
+# =========================
 def v2_new(request):
-    # 총무(단일) 이름 확보
-    admin_rec = TelegramRecipient.objects.filter(
-        is_active=True, role=TelegramRecipient.ROLE_ADMIN
-    ).order_by("name").first()
-    admin_name = admin_rec.name if admin_rec else ""
-
-        # ✅ 총무 이름(ADMIN) 1명 기준
+    # ✅ 총무(ADMIN) 1명 기준
     admin_obj = TelegramRecipient.objects.filter(
         is_active=True,
         role=TelegramRecipient.ROLE_ADMIN,
     ).order_by("id").first()
     admin_name = admin_obj.name if admin_obj else ""
-
 
     if request.method == "GET":
         # ✅ 담당 목록 (소속 포함)
@@ -113,7 +170,7 @@ def v2_new(request):
                 role=TelegramRecipient.ROLE_DRAFTER,
             )
             .order_by("name")
-            .values("role", "name", "department")   # ✅ department 추가
+            .values("role", "name", "department")
         )
 
         # ✅ 총무 목록 (소속 포함)
@@ -123,11 +180,10 @@ def v2_new(request):
                 role=TelegramRecipient.ROLE_ADMIN,
             )
             .order_by("name")
-            .values("role", "name", "department")   # ✅ department 추가
+            .values("role", "name", "department")
         )
 
-        # 총무 기본 이름 (없으면 빈문자열)
-        admin_name = admins[0]["name"] if admins else ""
+        admin_name_ui = admins[0]["name"] if admins else ""
 
         return render(
             request,
@@ -135,11 +191,11 @@ def v2_new(request):
             {
                 "drafters": drafters,
                 "admins": admins,
-                "admin_name": admin_name,
+                "admin_name": admin_name_ui,
             }
         )
 
-    # POST (여기는 네가 이미 수정한 로직 유지)
+    # POST
     template_code = (request.POST.get("template_code") or "").strip()
     department = (request.POST.get("department") or "").strip()
     name = (request.POST.get("name") or "").strip()
@@ -149,7 +205,6 @@ def v2_new(request):
     if not all([template_code, department, title, content]):
         return HttpResponse("필수값 누락", status=400)
 
-    # ✅ 총무 시작 템플릿들
     ADMIN_START_TEMPLATES = {"ADMIN_TO_CHAIR", "ADMIN_TO_AUDITOR_CHAIR"}
 
     if template_code in ADMIN_START_TEMPLATES:
@@ -173,9 +228,7 @@ def v2_new(request):
         submit_ip=request.META.get("REMOTE_ADDR", ""),
     )
 
-
     files = request.FILES.getlist("attachments")
-    print("FILES:", len(files), [f.name for f in files])
     for f in files:
         ApprovalAttachment.objects.create(
             approval=approval,
@@ -185,7 +238,7 @@ def v2_new(request):
 
     route = build_route_for_approval(approval=approval, template_code=template_code)
 
-        # ✅ 총무 시작 템플릿이면 상신 즉시 '총무' 단계 자동 승인 처리
+    # ✅ 총무 시작 템플릿이면 상신 즉시 '총무' 단계 자동 승인 처리
     if route.template_code in ("ADMIN_TO_CHAIR", "ADMIN_TO_AUDITOR_CHAIR"):
         current_role = get_current_actor_role(route)
         if current_role == "admin":
@@ -197,19 +250,30 @@ def v2_new(request):
             )
             route.refresh_from_db()
 
+    # ✅ 상신 알림: 새 포맷
     dispatch_notifications(
         template_code=route.template_code,
         event="submit",
         actor_role="",
         drafter_name=approval.name,
         drafter_department=approval.department,
-        text=f"(v2) 상신: [{approval.department}] {approval.title} (id={approval.id})",
+        text=build_tg_text(
+            kind="submit",
+            approval=approval,
+            route=route,
+            template_code=route.template_code,
+            actor_role="",
+            actor_action_kr="",
+            request=request,
+        ),
     )
 
     return redirect(f"/approval/v2/{approval.id}/")
 
 
-
+# =========================
+# v2 detail
+# =========================
 def v2_detail(request, pk: int):
     a = ApprovalRequest.objects.get(pk=pk)
     route = a.route_v2
@@ -223,6 +287,9 @@ def v2_detail(request, pk: int):
     )
 
 
+# =========================
+# approve
+# =========================
 def v2_approve(request, pk: int):
     if request.method != "POST":
         return HttpResponse("Method not allowed", status=405)
@@ -237,7 +304,7 @@ def v2_approve(request, pk: int):
         acted_anon_id=request.COOKIES.get("anon_id", ""),
     )
 
-    # 승인 알림
+    # 승인 알림 조건
     should_notify = False
 
     if route.template_code == "ADMIN_FINAL":
@@ -249,7 +316,7 @@ def v2_approve(request, pk: int):
         should_notify = (step.role in ("admin", "chairman"))
 
     elif route.template_code == "ADMIN_TO_AUDITOR_CHAIR":
-        # ✅ 총무-감사-회장: 감사/회장 승인 알림 (원하면 admin도 포함 가능)
+        # 총무-감사-회장: 감사/회장 승인 알림
         should_notify = (step.role in ("auditor", "chairman"))
 
     if should_notify:
@@ -259,11 +326,23 @@ def v2_approve(request, pk: int):
             actor_role=step.role,
             drafter_name=a.name,
             drafter_department=a.department,
-            text=f"(v2) 승인: [{a.department}] {a.title} (id={a.id}) actor={step.role}",
+            text=build_tg_text(
+                kind="approve",
+                approval=a,
+                route=route,
+                template_code=route.template_code,
+                actor_role=step.role,
+                actor_action_kr="승인",
+                request=request,
+            ),
         )
+
     return redirect(f"/approval/v2/{a.id}/")
 
 
+# =========================
+# reject
+# =========================
 def v2_reject(request, pk: int):
     if request.method != "POST":
         return HttpResponse("Method not allowed", status=405)
@@ -289,12 +368,23 @@ def v2_reject(request, pk: int):
         actor_role=step.role,
         drafter_name=a.name,
         drafter_department=a.department,
-        text=f"(v2) 반려: [{a.department}] {a.title} (id={a.id}) actor={step.role} 사유={reason}",
+        text=build_tg_text(
+            kind="reject",
+            approval=a,
+            route=route,
+            template_code=route.template_code,
+            actor_role=step.role,
+            actor_action_kr="반려",
+            request=request,
+        ),
     )
 
     return redirect(f"/approval/v2/{a.id}/")
 
 
+# =========================
+# DEBUG test endpoints
+# =========================
 def v2_test_approve_and_notify(request, pk: int):
     if not settings.DEBUG:
         raise Http404()
@@ -348,7 +438,6 @@ def v2_test_create(request):
 
     route = build_route_for_approval(approval=approval, template_code=template_code)
 
-    # ✅ test도 동일하게 ADMIN_TO_CHAIR auto-approve 반영
     if route.template_code == "ADMIN_TO_CHAIR":
         current_role = get_current_actor_role(route)
         if current_role == "admin":
@@ -361,7 +450,7 @@ def v2_test_create(request):
         actor_role="",
         drafter_name=approval.name,
         drafter_department=approval.department,
-        text=f"(v2) 상신: [{approval.department}] {approval.title} (id={approval.id})",
+        text="(테스트) 상신",
     )
 
     return HttpResponse(str(approval.id))
@@ -387,50 +476,39 @@ def v2_test_reject(request, pk: int):
         acted_anon_id=request.COOKIES.get("anon_id", ""),
     )
 
-    result = dispatch_notifications(
-        template_code=route.template_code,
-        event="reject",
-        actor_role=step.role,
-        drafter_name=a.name,
-        drafter_department=a.department,
-        text=f"(v2) 반려: [{a.department}] {a.title} (id={a.id}) actor={step.role} 사유={reason}",
-    )
+    return HttpResponse(f"rejected actor={step.role} reason={reason}")
 
-    return HttpResponse(f"rejected actor={step.role} dispatch={result}")
 
-# ✅ 임시 메모리 저장소(로컬 테스트용)
-# - 서버 재시작하면 사라짐
+# =========================
+# mobile upload (기존 유지)
+# =========================
 MOBILE_UPLOAD_STORE = {}  # token -> {"image_url": "...", "ts": ...}
 
-MOBILE_UPLOAD_STORE = {}  # token -> {"image_url": "...", "ts": ...}
 
 @csrf_exempt
 def mobile_upload_page(request, token: str):
     if request.method == "GET":
         return render(request, "approvals_v2/mobile_upload.html", {"token": token})
 
-    # POST: 이미지 저장
     f = request.FILES.get("image")
     if not f:
         return JsonResponse({"ok": False, "error": "no file"}, status=400)
 
-    # ✅ media에 저장 (기본 MEDIA_ROOT/URL 설정 필요)
     path = default_storage.save(f"mobile_upload/{token}/{f.name}", f)
     url = default_storage.url(path)
 
     MOBILE_UPLOAD_STORE[token] = {"image_url": url, "ts": timezone.now().isoformat()}
     return JsonResponse({"ok": True, "image_url": url})
 
+
 def mobile_upload_poll(request, token: str):
-    """
-    PC에서 폴링하는 API
-    """
     data = MOBILE_UPLOAD_STORE.get(token) or {}
     return JsonResponse({"image_url": data.get("image_url", "")})
 
-from django.http import HttpResponse
-from django.template.loader import render_to_string
 
+# =========================
+# pdf (그대로 유지)
+# =========================
 def approval_pdf(request, pk):
     """
     v2 PDF 출력
@@ -439,7 +517,6 @@ def approval_pdf(request, pk):
     - route/steps 안전 처리
     """
     from weasyprint import HTML
-    from approvals.models import ApprovalRequest
     import re
 
     try:
@@ -450,31 +527,17 @@ def approval_pdf(request, pk):
     route = getattr(approval, "route_v2", None)
     steps = route.steps.all().order_by("order") if route else []
 
-    # -----------------------------
-    # ✅ content HTML 정리 (PDF 깨짐 방지)
-    # -----------------------------
     raw = approval.content or ""
-
-    # style/script/link 제거
     raw = re.sub(r"(?is)<style.*?>.*?</style>", "", raw)
     raw = re.sub(r"(?is)<script.*?>.*?</script>", "", raw)
     raw = re.sub(r"(?is)<link[^>]*>", "", raw)
-
-    # html/body/head 태그 제거
     raw = re.sub(r"(?is)</?(html|body|head)[^>]*>", "", raw)
-
     content_html = raw
 
-    # -----------------------------
-    # ✅ 첨부파일 안전 전달
-    # -----------------------------
     attachments = []
     if hasattr(approval, "v2_attachments"):
         attachments = list(approval.v2_attachments.all())
 
-    # -----------------------------
-    # ✅ 템플릿 렌더
-    # -----------------------------
     html_string = render_to_string(
         "approvals_v2/pdf_template.html",
         {
@@ -487,9 +550,6 @@ def approval_pdf(request, pk):
         request=request,
     )
 
-    # -----------------------------
-    # ✅ PDF 생성
-    # -----------------------------
     pdf_bytes = HTML(
         string=html_string,
         base_url=request.build_absolute_uri("/"),
