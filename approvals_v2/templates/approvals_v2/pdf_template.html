@@ -131,7 +131,7 @@
       table-layout: fixed;
       margin-bottom: 10px;
     }
-    .pdf-tableth, .pdf-table td{
+    .pdf-table th, .pdf-table td{
       border:1px solid #111;
       padding: 7px 8px;
       vertical-align: top;
@@ -237,7 +237,7 @@
   </div>
 
   <!-- 타이틀 -->
-  <div class="title no-break">품 의 서</div>
+  <div class="pdf-title no-break">품 의 서</div>
 
   <!-- 결재란 -->
   <div class="sign-wrap no-break">
@@ -305,17 +305,17 @@
   </div>
 
   <!-- 기본 정보 -->
-  <table class="table no-break">
+  <table class="pdf-table no-break">
     <tr>
       <th>소속</th><td>{{ approval.department }}</td>
       <th>성명</th><td>{{ approval.name }}</td>
     </tr>
   </table>
 
-  <table class="table no-break">
+  <table class="pdf-table no-break">
     <tr>
       <th>제목</th>
-      <td>{{ approval.pdf-title }}</td>
+      <td>{{ approval.title }}</td>
     </tr>
   </table>
 
@@ -324,7 +324,7 @@
     <tr>
       <th>내용</th>
       <td class="content">
-        <div class="content-value">{{ content_html|safe }}</div>
+        <div class="content-value">{{ approval.content|safe }}</div>
       </td>
     </tr>
   </table>
