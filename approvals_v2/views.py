@@ -424,37 +424,64 @@ from django.http import HttpResponse
 from django.template.loader import render_to_string
 
 def approval_pdf(request, pk):
-    # ✅ 여기서만 import (서버 시작 시점 import로 죽는 것 방지)
+    """
+    v2 PDF 출력
+    - content 내부 <html>, <body>, <style>, <script> 제거
+    - 첨부파일 안전 전달
+    - route/steps 안전 처리
+    """
     from weasyprint import HTML
     from approvals.models import ApprovalRequest
     import re
 
-    approval = ApprovalRequest.objects.get(pk=pk)
-    route = getattr(approval, "route_v2", None)
+    try:
+        approval = ApprovalRequest.objects.select_related("route_v2").get(pk=pk)
+    except ApprovalRequest.DoesNotExist:
+        raise Http404()
 
-    # ✅ 순서 보장
+    route = getattr(approval, "route_v2", None)
     steps = route.steps.all().order_by("order") if route else []
 
+    # -----------------------------
+    # ✅ content HTML 정리 (PDF 깨짐 방지)
+    # -----------------------------
     raw = approval.content or ""
+
+    # style/script/link 제거
     raw = re.sub(r"(?is)<style.*?>.*?</style>", "", raw)
     raw = re.sub(r"(?is)<script.*?>.*?</script>", "", raw)
     raw = re.sub(r"(?is)<link[^>]*>", "", raw)
+
+    # html/body/head 태그 제거
+    raw = re.sub(r"(?is)</?(html|body|head)[^>]*>", "", raw)
+
     content_html = raw
 
-    # ✅ 템플릿 파일명은 네가 쓰는대로 유지/변경 둘 다 가능
-    #    - 내가 준 새 템플릿을 쓰려면 "approvals_v2/pdf.html"
-    #    - 기존 파일명을 유지하려면 아래를 "approvals_v2/pdf_template.html" 그대로 두면 됨
+    # -----------------------------
+    # ✅ 첨부파일 안전 전달
+    # -----------------------------
+    attachments = []
+    if hasattr(approval, "v2_attachments"):
+        attachments = list(approval.v2_attachments.all())
+
+    # -----------------------------
+    # ✅ 템플릿 렌더
+    # -----------------------------
     html_string = render_to_string(
         "approvals_v2/pdf_template.html",
         {
             "approval": approval,
             "route": route,
             "steps": steps,
-            "content_html": content_html
+            "content_html": content_html,
+            "attachments": attachments,
         },
-        request=request,  # ✅ 중요
+        request=request,
     )
 
+    # -----------------------------
+    # ✅ PDF 생성
+    # -----------------------------
     pdf_bytes = HTML(
         string=html_string,
         base_url=request.build_absolute_uri("/"),
@@ -462,7 +489,9 @@ def approval_pdf(request, pk):
 
     filename = f"approval_{approval.id}.pdf"
     response = HttpResponse(pdf_bytes, content_type="application/pdf")
+
     download = request.GET.get("download") == "1"
     disposition = "attachment" if download else "inline"
     response["Content-Disposition"] = f'{disposition}; filename="{filename}"'
+
     return response

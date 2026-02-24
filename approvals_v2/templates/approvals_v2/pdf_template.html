@@ -11,7 +11,6 @@
       size: A4;
       margin: 14mm 12mm;
 
-      /* WeasyPrint 페이지 번호 */
       @bottom-right {
         content: "Page " counter(page) " / " counter(pages);
         font-size: 10px;
@@ -30,7 +29,7 @@
       font-size: 12px;
       color: #111;
       margin: 0;
-        }
+    }
 
     /* 찢김 방지 */
     table, tr, td, th { page-break-inside: avoid; }
@@ -39,7 +38,7 @@
     /* ===== 헤더 ===== */
     .topbar{
       display:flex;
-      align-items:center;
+      align-items:flex-start;         /* ✅ 겹침 방지 */
       justify-content:space-between;
       margin-bottom: 10px;
       padding-bottom: 8px;
@@ -47,12 +46,16 @@
     }
     .brand{
       display:flex;
-      align-items:center;
+      align-items:flex-start;         /* ✅ 겹침 방지 */
       gap:10px;
     }
-    .brand img{ height: 26px; width: auto; }
-    .brand .t1{ font-weight: 900; font-size: 14px; line-height: 1.1; }
-    .brand .t2{ font-weight: 700; font-size: 11px; color:#444; margin-top:2px; }
+    .brand img{
+      height: 26px;
+      width: auto;
+      margin-top: 2px;                /* ✅ 도장 살짝 내려서 텍스트와 겹침 방지 */
+    }
+    .brand .t1{ font-weight: 900; font-size: 14px; line-height: 1.2; }
+    .brand .t2{ font-weight: 700; font-size: 11px; line-height: 1.2; color:#444; margin-top:2px; }
 
     .docmeta{
       text-align:right;
@@ -64,7 +67,7 @@
     .docmeta b{ color:#111; }
 
     /* ===== 타이틀 ===== */
-    .title{
+    .pdf-title{
       text-align:center;
       font-size: 22px;
       font-weight: 900;
@@ -74,12 +77,13 @@
 
     /* ===== 결재란 ===== */
     .sign-wrap{
-      display:flex;
-      justify-content:flex-end;
-      margin-top: 0px; /* 타이틀과 같이 보이게 살짝 끌어올림 (원치 않으면 0으로) */
+      width: 100%;                    /* ✅ WeasyPrint에서 flex만으로 오른쪽 정렬이 가끔 깨짐 */
+      text-align: right;              /* ✅ 확실히 우측 정렬 */
+      margin-top: 6px;
       margin-bottom: 12px;
     }
     .sign-table{
+      display: inline-table;          /* ✅ text-align:right에 반응 */
       border-collapse: collapse;
       border:1px solid #111;
       table-layout: fixed;
@@ -156,11 +160,11 @@
       font-size: 12px;
     }
 
-    /* ✅ 이미지: 찢김 방지 + 크기 제한(너무 길어지는 것 완화) */
+    /* ✅ 이미지: 찢김 방지 + 크기 제한 */
     .content-value img{
       max-width: 100% !important;
       height: auto !important;
-      max-height: 240mm;         /* A4 세로에서 여백 제외 정도 */
+      max-height: 240mm;
       object-fit: contain;
       display:block;
       margin: 8px 0;
@@ -206,7 +210,6 @@
       margin-left: 6px;
     }
 
-    /* 링크(첨부 URL 등) */
     a { color:#111; text-decoration: underline; }
   </style>
 </head>
@@ -215,7 +218,6 @@
   <!-- 상단바 -->
   <div class="topbar no-break">
     <div class="brand">
-      {# 도장 이미지 있으면 사용: 없으면 favicon으로 대체 #}
       <img src="{% static 'img/saecheon_stamp.png' %}" alt="stamp">
       <div>
         <div class="t1">내쇼날새천년</div>
@@ -279,10 +281,8 @@
                   {% endif %}
                 </div>
               {% endif %}
-
             {% elif s.state == "rejected" %}
               <img src="{% static 'img/reject_img.jpg' %}" class="stamp-img" alt="반려">
-
             {% else %}
               &nbsp;
             {% endif %}
@@ -320,11 +320,11 @@
   </table>
 
   <!-- 내용 -->
-  <table class="table">
+  <table class="pdf-table">
     <tr>
       <th>내용</th>
       <td class="content">
-        <div class="content-value">{{ approval.content|safe }}</div>
+        <div class="content-value">{{ content_html|safe }}</div>
       </td>
     </tr>
   </table>
@@ -332,7 +332,7 @@
   <!-- 반려 사유(있을 때만) -->
   {% for s in steps %}
     {% if s.state == "rejected" and s.reject_reason %}
-      <table class="table no-break">
+      <table class="pdf-table no-break">
         <tr>
           <th>반려</th>
           <td>
@@ -347,18 +347,18 @@
   {% endfor %}
 
   <!-- 첨부 -->
-  {% if approval.v2_attachments.all %}
-    <div class="attach-box no-break">
-      <div class="attach-title">📎 첨부파일</div>
-      <ul class="attach-list">
-        {% for f in approval.v2_attachments.all %}
-          <li>
-            {{ f.original_name|default:f.file.name }}
-            <span class="attach-meta">{{ f.uploaded_at|date:"Y-m-d H:i" }}</span>
-          </li>
-        {% endfor %}
-      </ul>
-    </div>
-  {% endif %}
+{% if attachments %}
+  <div class="attach-box no-break">
+    <div class="attach-title">📎 첨부파일</div>
+    <ul class="attach-list">
+      {% for f in attachments %}
+        <li>
+          {{ f.original_name|default:f.file.name }}
+          <span class="attach-meta">{{ f.uploaded_at|date:"Y-m-d H:i" }}</span>
+        </li>
+      {% endfor %}
+    </ul>
+  </div>
+{% endif %}
 </body>
 </html>
