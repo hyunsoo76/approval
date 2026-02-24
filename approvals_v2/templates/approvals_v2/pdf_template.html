@@ -77,11 +77,8 @@
 
     /* ===== 결재란 ===== */
     .sign-wrap{
-      width: 100%;                    /* ✅ WeasyPrint에서 flex만으로 오른쪽 정렬이 가끔 깨짐 */
-      text-align: right;              /* ✅ 확실히 우측 정렬 */
-      margin-top: 6px;
-      margin-bottom: 12px;
-    }
+      text-align:right;
+}
     .sign-table{
       display: inline-table;          /* ✅ text-align:right에 반응 */
       border-collapse: collapse;
@@ -150,7 +147,7 @@
 
     /* ===== 내용 ===== */
     .content{
-      min-height: 140mm;
+      min-height: 60mm;
     }
     .content-value{
       white-space: pre-wrap;
@@ -211,6 +208,22 @@
     }
 
     a { color:#111; text-decoration: underline; }
+
+    .title-row{
+      display:flex;
+      justify-content:space-between;
+      align-items:flex-start;
+      margin-top: 12px;
+      margin-bottom: 10px;
+    }
+
+    .pdf-title{
+      flex:1;
+      text-align:center;
+      font-size: 22px;
+      font-weight: 900;
+      letter-spacing: 0.35em;
+    }
   </style>
 </head>
 
@@ -239,10 +252,12 @@
   </div>
 
   <!-- 타이틀 -->
-  <div class="pdf-title no-break">품 의 서</div>
+  <div class="title-row no-break">
+    <div class="pdf-title">품 의 서</div>
 
   <!-- 결재란 -->
-  <div class="sign-wrap no-break">
+  <div class="sign-wrap">
+    <table class="sign-table">
     <table class="sign-table">
       <tr>
         {% for s in steps %}
@@ -303,6 +318,8 @@
       </tr>
     </table>
   </div>
+  </div>
+
 
   <!-- 기본 정보 -->
   <table class="pdf-table no-break">
