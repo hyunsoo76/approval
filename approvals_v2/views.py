@@ -427,12 +427,19 @@ def approval_pdf(request, pk):
     # ✅ 여기서만 import (서버 시작 시점 import로 죽는 것 방지)
     from weasyprint import HTML
     from approvals.models import ApprovalRequest
+    import re
 
     approval = ApprovalRequest.objects.get(pk=pk)
     route = getattr(approval, "route_v2", None)
 
     # ✅ 순서 보장
     steps = route.steps.all().order_by("order") if route else []
+
+    raw = approval.content or ""
+    raw = re.sub(r"(?is)<style.*?>.*?</style>", "", raw)
+    raw = re.sub(r"(?is)<script.*?>.*?</script>", "", raw)
+    raw = re.sub(r"(?is)<link[^>]*>", "", raw)
+    content_html = raw
 
     # ✅ 템플릿 파일명은 네가 쓰는대로 유지/변경 둘 다 가능
     #    - 내가 준 새 템플릿을 쓰려면 "approvals_v2/pdf.html"
@@ -443,6 +450,7 @@ def approval_pdf(request, pk):
             "approval": approval,
             "route": route,
             "steps": steps,
+            "content_html": content_html
         },
         request=request,  # ✅ 중요
     )
