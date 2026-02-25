@@ -12,45 +12,64 @@
     height:50px;
     width:auto;
   }
+
   /* 시스템 텍스트 묶음 */
-.system-wrap{
-  display:inline-block;   /* 텍스트 폭만큼만 */
-  line-height:1.2;
-  position:relative;
-  padding-bottom:6px;
-}
+  .system-wrap{
+    display:inline-block;   /* 텍스트 폭만큼만 */
+    line-height:1.2;
+    position:relative;
+    padding-bottom:6px;
+  }
 
-/* ✅ 밑줄을 '내쇼날새천년' 폭으로 */
-.system-wrap::after{
-  content:"";
-  position:absolute;
-  left:0;
-  right:0;
-  bottom:0;
-  height:1.4px;
-  background:#cfcfcf;
-}
+  /* ✅ 밑줄을 '내쇼날새천년' 폭으로 */
+  .system-wrap::after{
+    content:"";
+    position:absolute;
+    left:0;
+    right:0;
+    bottom:0;
+    height:1.4px;
+    background:#cfcfcf;
+  }
 
-/* 전자결재 */
-.system-text{
-  font-size:14px;
-  color:#444;
-  font-weight:700;
-}
+  /* 전자결재 */
+  .system-text{
+    font-size:14px;
+    color:#444;
+    font-weight:700;
+  }
 
-/* ===== 상태 배지 커스텀 ===== */
-.badge-outline-success{
-  background:#fff !important;
-  color:#198754 !important;
-  border:1px solid #198754 !important;
-}
+  /* ===== 현재 단계 배지(요구사항 반영) ===== */
+  .step-badge{
+    display:inline-block;
+    padding:6px 10px;
+    border-radius:8px;
+    font-size:13px;
+    font-weight:700;
+    line-height:1;
+    white-space:nowrap;
+  }
 
-.badge-outline-danger{
-  background:#fff !important;
-  color:#dc3545 !important;
-  border:1px solid #dc3545 !important;
-}
+  /* 완료: 초록 테두리 + 초록 글씨 + 흰 배경 */
+  .step-complete{
+    background:#fff !important;
+    color:#198754 !important;
+    border:1px solid #198754 !important;
+  }
 
+  /* 반려: 파란 테두리 + 파란 글씨 + 흰 배경 */
+  .step-reject{
+    background:#fff !important;
+    color:#0d6efd !important;
+    border:1px solid #0d6efd !important;
+  }
+
+  /* 결재대기(기타): 노랑 배경 + 검정 글씨 */
+  .step-wait{
+    background:#ffc107 !important;
+    color:#000 !important;
+    border:1px solid #ffc107 !important;
+  }
 </style>
 {% endblock %}
 
@@ -61,24 +80,21 @@
     <div class="d-flex justify-content-between align-items-center mb-4">
 
       <!-- 🔴 왼쪽: 도장 + 시스템명 -->
-        <div class="d-flex align-items-center gap-3">
+      <div class="d-flex align-items-center gap-3">
+        <img src="{% static 'img/saecheon_stamp.png' %}"
+            alt="새천년인"
+            class="stamp-logo">
 
-          <img src="{% static 'img/saecheon_stamp.png' %}"
-              alt="새천년인"
-              class="stamp-logo">
-
-          <div class="system-wrap">
-            <div style="font-size:20px; font-weight:800; letter-spacing:0.02em; color:#222;">
-              내쇼날새천년
-            </div>
-
-            <div class="system-text" style="margin-top:2px;">
-              전자결재
-            </div>
+        <div class="system-wrap">
+          <div style="font-size:20px; font-weight:800; letter-spacing:0.02em; color:#222;">
+            내쇼날새천년
           </div>
 
+          <div class="system-text" style="margin-top:2px;">
+            전자결재
+          </div>
         </div>
-
+      </div>
 
       <!-- 🔵 오른쪽: 새 기안 버튼 -->
       <a class="btn btn-primary" href="/approval/v2/new/">+ 새 기안</a>
@@ -112,25 +128,21 @@
                   <div class="small text-muted">#{{ a.id }}</div>
                   <div class="fw-semibold" style="line-height:1.25;">{{ a.title }}</div>
                 </div>
+
+                <!-- ✅ 현재 단계만 (상태 제거) -->
                 <div class="text-end">
-                  {% if route and route.status == "in_progress" %}
-                    <span class="badge text-bg-warning">진행중</span>
-                  {% elif route and route.status == "completed" %}
-                    <span class="badge badge-outline-success">완료</span>
+                  {% if route and route.status == "completed" %}
+                    <span class="step-badge step-complete">완료</span>
                   {% elif route and route.status == "rejected" %}
-                    <span class="badge badge-outline-danger">반려</span>
+                    <span class="step-badge step-reject">반려</span>
                   {% else %}
-                    <span class="badge text-bg-secondary">{% if route %}{{ route.status }}{% else %}-{% endif %}</span>
+                    <span class="step-badge step-wait">{{ row.current_step_label }}</span>
                   {% endif %}
                 </div>
               </div>
 
               <div class="mt-2 small text-muted">{{ a.department }} · {{ a.name }}</div>
               <div class="small text-muted">기안일: {{ a.created_at|date:"Y-m-d" }}</div>
-
-              <div class="mt-1">
-                <span class="badge text-bg-light border">현재 단계: {{ row.current_step_label }}</span>
-              </div>
             </div>
           </div>
         {% endwith %}
@@ -152,8 +164,7 @@
               <th style="width:160px;">회원사</th>
               <th style="width:120px;">기안자</th>
               <th style="width:130px;">기안일</th>
-              <th style="width:140px;">상태</th>
-              <th style="width:140px;">현재 단계</th>
+              <th style="width:180px;">현재 단계</th>
             </tr>
           </thead>
           <tbody>
@@ -165,22 +176,21 @@
                   <td>{{ a.department }}</td>
                   <td>{{ a.name }}</td>
                   <td>{{ a.created_at|date:"Y-m-d" }}</td>
+
+                  <!-- ✅ 현재 단계만 (상태 제거 + 색상 규칙 적용) -->
                   <td>
-                    {% if route and route.status == "in_progress" %}
-                      <span class="badge text-bg-warning">진행중</span>
-                    {% elif route and route.status == "completed" %}
-                      <span class="badge badge-outline-success">완료</span>
+                    {% if route and route.status == "completed" %}
+                      <span class="step-badge step-complete">완료</span>
                     {% elif route and route.status == "rejected" %}
-                      <span class="badge badge-outline-danger">반려</span>
+                      <span class="step-badge step-reject">반려</span>
                     {% else %}
-                      <span class="badge text-bg-secondary">{% if route %}{{ route.status }}{% else %}-{% endif %}</span>
+                      <span class="step-badge step-wait">{{ row.current_step_label }}</span>
                     {% endif %}
                   </td>
-                  <td>{{ row.current_step_label }}</td>
                 </tr>
               {% endwith %}
             {% empty %}
-              <tr><td colspan="7" class="text-center text-muted py-5">문서가 없습니다</td></tr>
+              <tr><td colspan="6" class="text-center text-muted py-5">문서가 없습니다</td></tr>
             {% endfor %}
           </tbody>
         </table>
