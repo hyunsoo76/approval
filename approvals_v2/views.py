@@ -27,6 +27,17 @@ ROLE_KR = {
     "chairman": "회장",
 }
 
+def get_client_ip(request) -> str:
+    xff = (request.META.get("HTTP_X_FORWARDED_FOR") or "").strip()
+    if xff:
+        return xff.split(",")[0].strip()
+
+    xri = (request.META.get("HTTP_X_REAL_IP") or "").strip()
+    if xri:
+        return xri
+
+    return (request.META.get("REMOTE_ADDR") or "").strip()
+
 
 def role_kr(role: str) -> str:
     return ROLE_KR.get(role or "", role or "")
@@ -282,7 +293,7 @@ def v2_new(request):
         name=name,
         title=title,
         content=content,
-        submit_ip=request.META.get("REMOTE_ADDR", ""),
+        submit_ip=get_client_ip(request),
     )
 
     files = request.FILES.getlist("attachments")
@@ -300,7 +311,7 @@ def v2_new(request):
         if current_role == "admin":
             approve_current_step(
                 route=route,
-                acted_ip=request.META.get("REMOTE_ADDR", ""),
+                acted_ip=get_client_ip(request),
                 acted_device=(request.META.get("HTTP_USER_AGENT", "")[:50]),
                 acted_anon_id=request.COOKIES.get("anon_id", ""),
             )
@@ -355,7 +366,7 @@ def v2_approve(request, pk: int):
 
     step = approve_current_step(
         route=route,
-        acted_ip=request.META.get("REMOTE_ADDR", ""),
+        acted_ip=get_client_ip(request),
         acted_device=(request.META.get("HTTP_USER_AGENT", "")[:50]),
         acted_anon_id=request.COOKIES.get("anon_id", ""),
     )
@@ -409,7 +420,7 @@ def v2_reject(request, pk: int):
     step = reject_current_step(
         route=route,
         reason=reason,
-        acted_ip=request.META.get("REMOTE_ADDR", ""),
+        acted_ip=get_client_ip(request),
         acted_device=(request.META.get("HTTP_USER_AGENT", "")[:50]),
         acted_anon_id=request.COOKIES.get("anon_id", ""),
     )
@@ -488,7 +499,7 @@ def v2_test_create(request):
         name=name,
         title=title,
         content=content,
-        submit_ip=request.META.get("REMOTE_ADDR", ""),
+        submit_ip=get_client_ip(request),
     )
 
     route = build_route_for_approval(approval=approval, template_code=template_code)
@@ -526,7 +537,7 @@ def v2_test_reject(request, pk: int):
     step = reject_current_step(
         route=route,
         reason=reason,
-        acted_ip=request.META.get("REMOTE_ADDR", ""),
+        acted_ip=get_client_ip(request),
         acted_device=(request.META.get("HTTP_USER_AGENT", "")[:50]),
         acted_anon_id=request.COOKIES.get("anon_id", ""),
     )
