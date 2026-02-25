@@ -104,21 +104,27 @@ def build_tg_text(*, kind: str, approval, route, template_code: str, actor_role:
 
             # ✅ 3명 라인 (결재자 2명 이상)
             else:
-                middle_role = approver_roles[0]  # "중간 결재자"는 항상 첫번째 결재자(총무/감사)
-                # 중간 결재가 승인된 상태면 누적 표시
-                middle_state = state_by_role.get(middle_role, "")
-                if middle_state == "approved":
-                    lines.append(f"중간결재자 : {role_kr(middle_role)}[승인]")
-                elif middle_state == "rejected":
-                    lines.append(f"중간결재자 : {role_kr(middle_role)}[반려]")
+                middle_role = approver_roles[0]   # 첫 결재자(총무/감사)
+                final_role = approver_roles[-1]   # 최종(회장)
 
-                # 이번 액션이 최종 결재자면 최종결재자 라인 출력
-                # 중간 결재자면 중간결재자만(위에서 actor_action_kr로 표기)
-                if actor_role == final_role:
+                middle_state = state_by_role.get(middle_role, "")
+
+                if actor_role == middle_role:
+                    # ✅ 지금 중간결재자가 처리한 알림이면, 중간결재자 라인은 "한 번만" 찍는다
+                    lines.append(f"중간결재자 : {role_kr(middle_role)}[{actor_action_kr}]")
+
+                elif actor_role == final_role:
+                    # ✅ 최종 결재자 처리 알림이면, 중간결재가 이미 승인/반려 된 경우에만 누적 표시
+                    if middle_state == "approved":
+                        lines.append(f"중간결재자 : {role_kr(middle_role)}[승인]")
+                    elif middle_state == "rejected":
+                        lines.append(f"중간결재자 : {role_kr(middle_role)}[반려]")
+
                     lines.append(f"최종결재자 : {role_kr(final_role)}[{actor_action_kr}]")
+
                 else:
-                    # 중간 결재자 처리(승인/반려)
-                    lines.append(f"중간결재자 : {role_kr(actor_role)}[{actor_action_kr}]")
+                    # ✅ 혹시 결재자가 3명 초과로 늘어나는 경우를 대비한 안전장치(현재는 거의 안 탐)
+                    lines.append(f"승인자 : {role_kr(actor_role)}[{actor_action_kr}]")
 
     lines.append(f"바로가기 : {base_url}")
     return "\n".join(lines)
