@@ -47,15 +47,29 @@ def drafter_role_kr_by_template(template_code: str) -> str:
     return "총무" if template_code in admin_start else "담당"
 
 
-def get_approver_roles(route):
+def drafter_role_code_by_template(template_code: str) -> str:
     """
-    drafter 제외 결재자 role들을 order 순서로 반환
-    예) [admin, chairman] / [admin, auditor, chairman]
+    ✅ 기안자를 role 코드로 반환
+    - 총무 시작 템플릿: admin (총무가 기안자)
+    - 그 외: drafter (담당이 기안자)
+    """
+    admin_start = {"ADMIN_TO_CHAIR", "ADMIN_TO_AUDITOR_CHAIR"}
+    return "admin" if template_code in admin_start else "drafter"
+
+
+def get_approver_roles(route, template_code: str):
+    """
+    ✅ '기안자 역할'을 제외한 결재자 role들을 order 순서로 반환
+    예)
+      - NORMAL(담당 기안): [admin, chairman] / [admin, auditor, chairman]
+      - ADMIN_TO_CHAIR(총무 기안): [chairman]
+      - ADMIN_TO_AUDITOR_CHAIR(총무 기안): [auditor, chairman]
     """
     if not route:
         return []
+    drafter_code = drafter_role_code_by_template(template_code)
     return list(
-        route.steps.exclude(role="drafter").order_by("order").values_list("role", flat=True)
+        route.steps.exclude(role=drafter_code).order_by("order").values_list("role", flat=True)
     )
 
 
@@ -81,8 +95,8 @@ def build_tg_text(*, kind: str, approval, route, template_code: str, actor_role:
     """
     base_url = request.build_absolute_uri(f"/approval/v2/{approval.id}/")
 
-    # route 최신상태 기준으로 계산(중요)
-    approver_roles = get_approver_roles(route)  # drafter 제외
+    # ✅ route 최신상태 기준으로 계산(중요)
+    approver_roles = get_approver_roles(route, template_code)  # ✅ 기안자 역할 제외
     state_by_role = get_step_state_by_role(route)
 
     lines = []
@@ -96,25 +110,23 @@ def build_tg_text(*, kind: str, approval, route, template_code: str, actor_role:
         if not approver_roles:
             lines.append(f"처리자 : {role_kr(actor_role)}[{actor_action_kr}]")
         else:
-            final_role = approver_roles[-1]  # 최종 결재자
-
-            # ✅ 2명 라인 (결재자 1명)
+            # ✅ 2명 라인 = (기안자 제외 결재자) 1명 => 최종결재자만
             if len(approver_roles) == 1:
+                final_role = approver_roles[-1]
                 lines.append(f"최종결재자 : {role_kr(final_role)}[{actor_action_kr}]")
 
-            # ✅ 3명 라인 (결재자 2명 이상)
+            # ✅ 3명 라인 = (기안자 제외 결재자) 2명 => 중간 + 최종
             else:
-                middle_role = approver_roles[0]   # 첫 결재자(총무/감사)
-                final_role = approver_roles[-1]   # 최종(회장)
-
+                middle_role = approver_roles[0]
+                final_role = approver_roles[-1]
                 middle_state = state_by_role.get(middle_role, "")
 
                 if actor_role == middle_role:
-                    # ✅ 지금 중간결재자가 처리한 알림이면, 중간결재자 라인은 "한 번만" 찍는다
+                    # ✅ 중간 결재자 처리 알림: 중간 1줄만
                     lines.append(f"중간결재자 : {role_kr(middle_role)}[{actor_action_kr}]")
 
                 elif actor_role == final_role:
-                    # ✅ 최종 결재자 처리 알림이면, 중간결재가 이미 승인/반려 된 경우에만 누적 표시
+                    # ✅ 최종 결재자 처리 알림: 중간이 이미 처리된 경우만 누적 표시
                     if middle_state == "approved":
                         lines.append(f"중간결재자 : {role_kr(middle_role)}[승인]")
                     elif middle_state == "rejected":
@@ -123,7 +135,7 @@ def build_tg_text(*, kind: str, approval, route, template_code: str, actor_role:
                     lines.append(f"최종결재자 : {role_kr(final_role)}[{actor_action_kr}]")
 
                 else:
-                    # ✅ 혹시 결재자가 3명 초과로 늘어나는 경우를 대비한 안전장치(현재는 거의 안 탐)
+                    # ✅ 4명 이상으로 늘어나는 경우 대비
                     lines.append(f"승인자 : {role_kr(actor_role)}[{actor_action_kr}]")
 
     lines.append(f"바로가기 : {base_url}")
