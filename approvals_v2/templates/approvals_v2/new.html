@@ -49,6 +49,53 @@
     .info-table th,.subject-table th,.content-table th{width:70px;}
     .content-table td{height:280px;}
   }
+
+  /* 에디터 안 이미지 기본 */
+  #contentEditor img{
+    max-width: 100%;
+    height: auto;
+  }
+
+  /* 선택된 이미지 표시 */
+  #contentEditor img.img-selected{
+    outline: 2px solid rgba(13,110,253,.6);
+    outline-offset: 2px;
+  }
+
+  /* 리사이즈 핸들 */
+  .img-resize-handle{
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    border: 2px solid rgba(13,110,253,.9);
+    background: #fff;
+    border-radius: 3px;
+    cursor: nwse-resize;
+    box-shadow: 0 1px 4px rgba(0,0,0,.2);
+    z-index: 9999;
+  }
+
+  /* 이미지 퀵 버튼 */
+  .img-size-toolbar{
+    position: absolute;
+    display: flex;
+    gap: 6px;
+    padding: 6px;
+    background: rgba(255,255,255,.95);
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0,0,0,.12);
+    z-index: 9999;
+  }
+  .img-size-toolbar button{
+    border: 1px solid #666;
+    background: #fff;
+    color: #222;
+    padding: 3px 8px;
+    border-radius: 8px;
+    font-size: 12px;
+    cursor: pointer;
+  }
 </style>
 {% endblock %}
 
@@ -437,6 +484,126 @@
         .catch(() => {});
     }, 3000);
   })();
+
+  (function(){
+  const editor = document.getElementById('contentEditor');
+  if (!editor) return;
+
+  let selectedImg = null;
+  let handleEl = null;
+  let toolbarEl = null;
+
+  let dragging = false;
+  let startX = 0;
+  let startW = 0;
+
+  function removeUI(){
+    if (handleEl) { handleEl.remove(); handleEl = null; }
+    if (toolbarEl) { toolbarEl.remove(); toolbarEl = null; }
+    if (selectedImg) { selectedImg.classList.remove('img-selected'); }
+    selectedImg = null;
+  }
+
+  function placeHandleAndToolbar(img){
+    // 핸들
+    const rect = img.getBoundingClientRect();
+    const pageX = window.scrollX;
+    const pageY = window.scrollY;
+
+    handleEl = document.createElement('div');
+    handleEl.className = 'img-resize-handle';
+    document.body.appendChild(handleEl);
+
+    // 툴바(50/75/100)
+    toolbarEl = document.createElement('div');
+    toolbarEl.className = 'img-size-toolbar';
+    toolbarEl.innerHTML = `
+      <button type="button" data-pct="50">50%</button>
+      <button type="button" data-pct="75">75%</button>
+      <button type="button" data-pct="100">100%</button>
+    `;
+    document.body.appendChild(toolbarEl);
+
+    function reposition(){
+      const r = img.getBoundingClientRect();
+      const x = window.scrollX;
+      const y = window.scrollY;
+
+      // 핸들: 오른쪽 아래
+      handleEl.style.left = (x + r.right - 8) + 'px';
+      handleEl.style.top  = (y + r.bottom - 8) + 'px';
+
+      // 툴바: 이미지 위쪽 오른쪽
+      toolbarEl.style.left = (x + r.right - 170) + 'px';
+      toolbarEl.style.top  = (y + r.top - 44) + 'px';
+    }
+
+    reposition();
+
+    // 스크롤/리사이즈 시 따라가기
+    const onWin = () => { if (selectedImg === img) reposition(); };
+    window.addEventListener('scroll', onWin, { passive:true });
+    window.addEventListener('resize', onWin);
+
+    // 툴바 버튼
+    toolbarEl.addEventListener('click', (e) => {
+      const btn = e.target.closest('button[data-pct]');
+      if (!btn) return;
+      const pct = parseInt(btn.dataset.pct, 10);
+      // 에디터 폭 기준 퍼센트
+      img.style.width = pct + '%';
+      img.style.height = 'auto';
+      reposition();
+    });
+
+    // 드래그 리사이즈
+    function startDrag(ev){
+      ev.preventDefault();
+      dragging = true;
+      startX = ev.clientX;
+      startW = img.getBoundingClientRect().width;
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', endDrag);
+    }
+
+    function onMove(ev){
+      if (!dragging) return;
+      const dx = ev.clientX - startX;
+      const newW = Math.max(60, startW + dx); // 최소 폭 60px
+      img.style.width = newW + 'px';
+      img.style.height = 'auto';
+      reposition();
+    }
+
+    function endDrag(){
+      dragging = false;
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', endDrag);
+    }
+
+    handleEl.addEventListener('mousedown', startDrag);
+  }
+
+  // 에디터 내 이미지 클릭하면 선택
+  editor.addEventListener('click', (e) => {
+    const img = e.target && e.target.tagName === 'IMG' ? e.target : null;
+    if (!img) return;
+
+    removeUI();
+    selectedImg = img;
+    selectedImg.classList.add('img-selected');
+    placeHandleAndToolbar(selectedImg);
+  });
+
+  // 에디터 밖 클릭하면 해제
+  document.addEventListener('click', (e) => {
+    if (!selectedImg) return;
+    const inEditor = editor.contains(e.target);
+    const inUI = (handleEl && handleEl.contains(e.target)) || (toolbarEl && toolbarEl.contains(e.target));
+    if (!inEditor && !inUI) removeUI();
+  });
+
+})();
 
 
 
