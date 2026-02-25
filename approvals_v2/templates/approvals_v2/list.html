@@ -15,13 +15,12 @@
 
   /* 시스템 텍스트 묶음 */
   .system-wrap{
-    display:inline-block;   /* 텍스트 폭만큼만 */
+    display:inline-block;
     line-height:1.2;
     position:relative;
     padding-bottom:6px;
   }
 
-  /* ✅ 밑줄을 '내쇼날새천년' 폭으로 */
   .system-wrap::after{
     content:"";
     position:absolute;
@@ -32,14 +31,13 @@
     background:#cfcfcf;
   }
 
-  /* 전자결재 */
   .system-text{
     font-size:14px;
     color:#444;
     font-weight:700;
   }
 
-  /* ===== 현재 단계 배지(요구사항 반영) ===== */
+  /* ===== 현재 단계 배지 ===== */
   .step-badge{
     display:inline-block;
     padding:6px 10px;
@@ -50,36 +48,43 @@
     white-space:nowrap;
   }
 
-  /* 완료: 초록 테두리 + 초록 글씨 + 흰 배경 */
+  /* 완료 */
   .step-complete{
-    background:#fff !important;
-    color:#198754 !important;
-    border:1px solid #198754 !important;
+    background:#fff;
+    color:#198754;
+    border:1px solid #198754;
   }
 
-  /* 반려: 파란 테두리 + 파란 글씨 + 흰 배경 */
+  /* 반려 */
   .step-reject{
-    background:#fff !important;
-    color:#0d6efd !important;
-    border:1px solid #0d6efd !important;
+    background:#fff;
+    color:#0d6efd;
+    border:1px solid #0d6efd;
   }
 
-  /* 결재대기(기타): 노랑 배경 + 검정 글씨 */
+  /* ✅ 부드러운 노랑 대기 */
   .step-wait{
-    background:#ffc107 !important;
-    color:#000 !important;
-    border:1px solid #ffc107 !important;
-  }
-  .btn-custom-gray{
-    background:#ffffff;
-    color:#333333;
-    border:2px solid #333333;
-    font-weight:700;
+    background:#fff3cd;
+    color:#664d03;
+    border:1px solid #ffecb5;
   }
 
-  .btn-custom-gray:hover{
-    background:#333333;
-    color:#ffffff;
+  /* ✅ 테이블 밀도감 조정 */
+  .table td, .table th{
+    vertical-align: middle;
+    padding-top:0.6rem;
+    padding-bottom:0.6rem;
+  }
+
+  /* ✅ row hover 효과 */
+  .table tbody tr:hover{
+    background:#f8f9fa;
+    transition:0.15s ease;
+  }
+
+  /* 모바일 카드 그림자 살짝 줄임 */
+  .card{
+    box-shadow:0 1px 3px rgba(0,0,0,0.05) !important;
   }
 </style>
 {% endblock %}
@@ -90,7 +95,6 @@
 
     <div class="d-flex justify-content-between align-items-center mb-4">
 
-      <!-- 🔴 왼쪽: 도장 + 시스템명 -->
       <div class="d-flex align-items-center gap-3">
         <img src="{% static 'img/saecheon_stamp.png' %}"
             alt="새천년인"
@@ -107,8 +111,7 @@
         </div>
       </div>
 
-      <!-- 🔵 오른쪽: 새 기안 버튼 -->
-      <a class="btn btn-custom-gray" href="/approval/v2/new/">
+      <a class="btn btn-outline-dark fw-semibold" href="/approval/v2/new/">
         + 새 기안
       </a>
     </div>
@@ -130,11 +133,11 @@
       </div>
     </form>
 
-    <!-- ✅ 모바일 카드 -->
+    <!-- 모바일 -->
     <div class="d-md-none">
       {% for row in approvals_ctx %}
         {% with a=row.a route=row.route %}
-          <div class="card shadow-sm mb-2" onclick="location.href='/approval/v2/{{ a.id }}/'" style="cursor:pointer;">
+          <div class="card mb-2" onclick="location.href='/approval/v2/{{ a.id }}/'" style="cursor:pointer;">
             <div class="card-body">
               <div class="d-flex justify-content-between align-items-start">
                 <div class="me-2">
@@ -142,7 +145,6 @@
                   <div class="fw-semibold" style="line-height:1.25;">{{ a.title }}</div>
                 </div>
 
-                <!-- ✅ 현재 단계만 (상태 제거) -->
                 <div class="text-end">
                   {% if route and route.status == "completed" %}
                     <span class="step-badge step-complete">완료</span>
@@ -160,14 +162,14 @@
           </div>
         {% endwith %}
       {% empty %}
-        <div class="card shadow-sm">
+        <div class="card">
           <div class="card-body text-center text-muted py-5">문서가 없습니다</div>
         </div>
       {% endfor %}
     </div>
 
-    <!-- ✅ PC/태블릿 표 -->
-    <div class="card shadow-sm d-none d-md-block">
+    <!-- PC -->
+    <div class="card d-none d-md-block">
       <div class="table-responsive">
         <table class="table table-hover mb-0">
           <thead class="table-light">
@@ -189,8 +191,6 @@
                   <td>{{ a.department }}</td>
                   <td>{{ a.name }}</td>
                   <td>{{ a.created_at|date:"Y-m-d" }}</td>
-
-                  <!-- ✅ 현재 단계만 (상태 제거 + 색상 규칙 적용) -->
                   <td>
                     {% if route and route.status == "completed" %}
                       <span class="step-badge step-complete">완료</span>
