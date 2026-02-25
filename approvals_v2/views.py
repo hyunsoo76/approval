@@ -15,7 +15,7 @@ from approvals_v2.routes import (
     get_current_actor_role,
     reject_current_step,
 )
-
+from django.shortcuts import get_object_or_404
 
 # =========================
 # ✅ 텔레그램 메시지 포맷
@@ -331,7 +331,7 @@ def v2_new(request):
 # v2 detail
 # =========================
 def v2_detail(request, pk: int):
-    a = ApprovalRequest.objects.get(pk=pk)
+    a = get_object_or_404(ApprovalRequest, pk=pk)
     route = a.route_v2
     steps = route.steps.order_by("order")
     actor_role = get_current_actor_role(route)
