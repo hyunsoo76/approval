@@ -37,16 +37,6 @@ def fmt_submit_date(dt):
     return f"{dt.year}년 {dt.month}월 {dt.day}일"
 
 
-def last_approver_role(route):
-    """
-    drafter 제외하고 결재라인 마지막 role 반환
-    """
-    if not route:
-        return ""
-    last = route.steps.exclude(role="drafter").order_by("-order").first()
-    return last.role if last else ""
-
-
 def drafter_role_kr_by_template(template_code: str) -> str:
     """
     기안자는 '이름'이 아니라 '역할'로만 표시
@@ -57,12 +47,43 @@ def drafter_role_kr_by_template(template_code: str) -> str:
     return "총무" if template_code in admin_start else "담당"
 
 
+def get_approver_roles(route):
+    """
+    drafter 제외 결재자 role들을 order 순서로 반환
+    예) [admin, chairman] / [admin, auditor, chairman]
+    """
+    if not route:
+        return []
+    return list(
+        route.steps.exclude(role="drafter").order_by("order").values_list("role", flat=True)
+    )
+
+
+def get_step_state_by_role(route):
+    """
+    role -> state 매핑
+    """
+    if not route:
+        return {}
+    return {s.role: s.state for s in route.steps.all()}
+
+
 def build_tg_text(*, kind: str, approval, route, template_code: str, actor_role: str, actor_action_kr: str, request):
     """
     kind: submit / approve / reject
     actor_action_kr: 승인/반려 (approve/reject일 때만 사용)
+    규칙:
+    - (v2) 제거
+    - 기안자: 역할만
+    - 2명 라인: 기안자 + 최종결재자
+    - 3명 라인: 기안자 + 중간결재자 + 최종결재자 (누적)
+    - 마지막 줄: 바로가기 URL
     """
     base_url = request.build_absolute_uri(f"/approval/v2/{approval.id}/")
+
+    # route 최신상태 기준으로 계산(중요)
+    approver_roles = get_approver_roles(route)  # drafter 제외
+    state_by_role = get_step_state_by_role(route)
 
     lines = []
     lines.append("내쇼날새천년 전자결재")
@@ -71,10 +92,33 @@ def build_tg_text(*, kind: str, approval, route, template_code: str, actor_role:
     lines.append(f"기안자 : {drafter_role_kr_by_template(template_code)}")
 
     if kind in {"approve", "reject"}:
-        last_role = last_approver_role(route)
-        actor_role_kr = role_kr(actor_role)
-        label = "최종승인" if (actor_role == last_role) else "승인자"
-        lines.append(f"{label} : {actor_role_kr}[{actor_action_kr}]")
+        # 결재자가 0명인 예외 방어
+        if not approver_roles:
+            lines.append(f"처리자 : {role_kr(actor_role)}[{actor_action_kr}]")
+        else:
+            final_role = approver_roles[-1]  # 최종 결재자
+
+            # ✅ 2명 라인 (결재자 1명)
+            if len(approver_roles) == 1:
+                lines.append(f"최종결재자 : {role_kr(final_role)}[{actor_action_kr}]")
+
+            # ✅ 3명 라인 (결재자 2명 이상)
+            else:
+                middle_role = approver_roles[0]  # "중간 결재자"는 항상 첫번째 결재자(총무/감사)
+                # 중간 결재가 승인된 상태면 누적 표시
+                middle_state = state_by_role.get(middle_role, "")
+                if middle_state == "approved":
+                    lines.append(f"중간결재자 : {role_kr(middle_role)}[승인]")
+                elif middle_state == "rejected":
+                    lines.append(f"중간결재자 : {role_kr(middle_role)}[반려]")
+
+                # 이번 액션이 최종 결재자면 최종결재자 라인 출력
+                # 중간 결재자면 중간결재자만(위에서 actor_action_kr로 표기)
+                if actor_role == final_role:
+                    lines.append(f"최종결재자 : {role_kr(final_role)}[{actor_action_kr}]")
+                else:
+                    # 중간 결재자 처리(승인/반려)
+                    lines.append(f"중간결재자 : {role_kr(actor_role)}[{actor_action_kr}]")
 
     lines.append(f"바로가기 : {base_url}")
     return "\n".join(lines)
@@ -163,7 +207,6 @@ def v2_new(request):
     admin_name = admin_obj.name if admin_obj else ""
 
     if request.method == "GET":
-        # ✅ 담당 목록 (소속 포함)
         drafters = list(
             TelegramRecipient.objects.filter(
                 is_active=True,
@@ -173,7 +216,6 @@ def v2_new(request):
             .values("role", "name", "department")
         )
 
-        # ✅ 총무 목록 (소속 포함)
         admins = list(
             TelegramRecipient.objects.filter(
                 is_active=True,
@@ -195,7 +237,6 @@ def v2_new(request):
             }
         )
 
-    # POST
     template_code = (request.POST.get("template_code") or "").strip()
     department = (request.POST.get("department") or "").strip()
     name = (request.POST.get("name") or "").strip()
@@ -210,11 +251,9 @@ def v2_new(request):
     if template_code in ADMIN_START_TEMPLATES:
         if not admin_name:
             return HttpResponse("총무 계정이 설정되어 있지 않습니다.", status=400)
-        # ✅ 성명/소속 강제
         name = admin_name
         department = "(주)새진"
     else:
-        # ✅ 담당 시작 라인에서는 총무 선택 금지
         if admin_name and name == admin_name:
             return HttpResponse("담당부터 시작하는 결재라인에서는 총무를 성명으로 선택할 수 없습니다.", status=400)
         if not name:
@@ -238,7 +277,6 @@ def v2_new(request):
 
     route = build_route_for_approval(approval=approval, template_code=template_code)
 
-    # ✅ 총무 시작 템플릿이면 상신 즉시 '총무' 단계 자동 승인 처리
     if route.template_code in ("ADMIN_TO_CHAIR", "ADMIN_TO_AUDITOR_CHAIR"):
         current_role = get_current_actor_role(route)
         if current_role == "admin":
@@ -250,7 +288,7 @@ def v2_new(request):
             )
             route.refresh_from_db()
 
-    # ✅ 상신 알림: 새 포맷
+    # ✅ 상신 알림
     dispatch_notifications(
         template_code=route.template_code,
         event="submit",
@@ -304,19 +342,15 @@ def v2_approve(request, pk: int):
         acted_anon_id=request.COOKIES.get("anon_id", ""),
     )
 
-    # 승인 알림 조건
+    # ✅ 상태 반영
+    route.refresh_from_db()
+
     should_notify = False
-
     if route.template_code == "ADMIN_FINAL":
-        # 총무 전결 승인 시에만
         should_notify = (step.role == "admin")
-
     elif route.template_code in ("NORMAL", "ADMIN_TO_CHAIR"):
-        # 총무/회장 승인 알림
         should_notify = (step.role in ("admin", "chairman"))
-
     elif route.template_code == "ADMIN_TO_AUDITOR_CHAIR":
-        # 총무-감사-회장: 감사/회장 승인 알림
         should_notify = (step.role in ("auditor", "chairman"))
 
     if should_notify:
@@ -361,6 +395,9 @@ def v2_reject(request, pk: int):
         acted_device=(request.META.get("HTTP_USER_AGENT", "")[:50]),
         acted_anon_id=request.COOKIES.get("anon_id", ""),
     )
+
+    # ✅ 상태 반영
+    route.refresh_from_db()
 
     dispatch_notifications(
         template_code=route.template_code,
