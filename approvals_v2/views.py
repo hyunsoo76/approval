@@ -1,7 +1,7 @@
 from django.conf import settings
 from django.core.files.storage import default_storage
 from django.http import Http404, HttpResponse, JsonResponse
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from django.template.loader import render_to_string
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
@@ -15,7 +15,6 @@ from approvals_v2.routes import (
     get_current_actor_role,
     reject_current_step,
 )
-from django.shortcuts import get_object_or_404
 
 # =========================
 # ✅ 텔레그램 메시지 포맷
@@ -152,6 +151,121 @@ def build_tg_text(*, kind: str, approval, route, template_code: str, actor_role:
     lines.append(f"바로가기 : {base_url}")
     return "\n".join(lines)
 
+ADMIN_START_TEMPLATES = {"ADMIN_TO_CHAIR", "ADMIN_TO_AUDITOR_CHAIR"}
+
+
+def get_form_base_context():
+    drafters = list(
+        TelegramRecipient.objects.filter(
+            is_active=True,
+            role=TelegramRecipient.ROLE_DRAFTER,
+        )
+        .order_by("name")
+        .values("role", "name", "department")
+    )
+
+    admins = list(
+        TelegramRecipient.objects.filter(
+            is_active=True,
+            role=TelegramRecipient.ROLE_ADMIN,
+        )
+        .order_by("name")
+        .values("role", "name", "department")
+    )
+
+    admin_name_ui = admins[0]["name"] if admins else ""
+
+    return {
+        "drafters": drafters,
+        "admins": admins,
+        "admin_name": admin_name_ui,
+    }
+
+
+def can_edit_approval(route) -> bool:
+    """
+    수정 가능 조건
+    - 진행중 문서
+    - 최초 상신 이후, 아직 '기안자 외 결재자' 누구도 승인/반려하지 않은 상태
+    """
+    if not route:
+        return False
+
+    if route.status != "in_progress":
+        return False
+
+    drafter_role_code = drafter_role_code_by_template(route.template_code)
+
+    acted_approver_exists = route.steps.exclude(role=drafter_role_code).exclude(state="pending").exists()
+    return not acted_approver_exists
+
+
+def apply_form_values(template_code: str, department: str, name: str, title: str, content: str, admin_name: str):
+    if not all([template_code, department, title, content]):
+        return {"ok": False, "message": "필수값 누락"}
+
+    if template_code in ADMIN_START_TEMPLATES:
+        if not admin_name:
+            return {"ok": False, "message": "총무 계정이 설정되어 있지 않습니다."}
+        name = admin_name
+        department = "(주)새진"
+    else:
+        if admin_name and name == admin_name:
+            return {"ok": False, "message": "담당부터 시작하는 결재라인에서는 총무를 성명으로 선택할 수 없습니다."}
+        if not name:
+            return {"ok": False, "message": "필수값 누락"}
+
+    return {
+        "ok": True,
+        "template_code": template_code,
+        "department": department,
+        "name": name,
+        "title": title,
+        "content": content,
+    }
+
+
+def rebuild_route_after_edit(request, approval, template_code: str):
+    """
+    기존 route/step 제거 후 현재 입력값 기준으로 다시 상신
+    """
+    old_route = getattr(approval, "route_v2", None)
+    if old_route:
+        old_route.steps.all().delete()
+        old_route.delete()
+
+    route = build_route_for_approval(approval=approval, template_code=template_code)
+
+    if route.template_code in ADMIN_START_TEMPLATES:
+        current_role = get_current_actor_role(route)
+        if current_role == "admin":
+            approve_current_step(
+                route=route,
+                acted_ip=get_client_ip(request),
+                acted_device=(request.META.get("HTTP_USER_AGENT", "")[:50]),
+                acted_anon_id=request.COOKIES.get("anon_id", ""),
+            )
+            route.refresh_from_db()
+
+    dispatch_notifications(
+        template_code=route.template_code,
+        event="submit",
+        actor_role="",
+        drafter_name=approval.name,
+        drafter_department=approval.department,
+        text=build_tg_text(
+            kind="submit",
+            approval=approval,
+            route=route,
+            template_code=route.template_code,
+            actor_role="",
+            actor_action_kr="",
+            request=request,
+        ),
+    )
+
+    return route
+
 
 # =========================
 # v2 list
@@ -228,7 +342,6 @@ def v2_list(request):
 # v2 new
 # =========================
 def v2_new(request):
-    # ✅ 총무(ADMIN) 1명 기준
     admin_obj = TelegramRecipient.objects.filter(
         is_active=True,
         role=TelegramRecipient.ROLE_ADMIN,
@@ -236,35 +349,24 @@ def v2_new(request):
     admin_name = admin_obj.name if admin_obj else ""
 
     if request.method == "GET":
-        drafters = list(
-            TelegramRecipient.objects.filter(
-                is_active=True,
-                role=TelegramRecipient.ROLE_DRAFTER,
-            )
-            .order_by("name")
-            .values("role", "name", "department")
-        )
-
-        admins = list(
-            TelegramRecipient.objects.filter(
-                is_active=True,
-                role=TelegramRecipient.ROLE_ADMIN,
-            )
-            .order_by("name")
-            .values("role", "name", "department")
-        )
-
-        admin_name_ui = admins[0]["name"] if admins else ""
-
-        return render(
-            request,
-            "approvals_v2/new.html",
+        ctx = get_form_base_context()
+        ctx.update(
             {
-                "drafters": drafters,
-                "admins": admins,
-                "admin_name": admin_name_ui,
+                "mode": "create",
+                "form_action": "/approval/v2/new/",
+                "submit_label": "상신",
+                "preview_label": "📱 스마트폰 미리보기",
+                "initial": {
+                    "template_code": "",
+                    "name": "",
+                    "department": "",
+                    "title": "",
+                    "content": "",
+                },
+                "existing_attachments": [],
             }
         )
+        return render(request, "approvals_v2/new.html", ctx)
 
     template_code = (request.POST.get("template_code") or "").strip()
     department = (request.POST.get("department") or "").strip()
@@ -272,27 +374,22 @@ def v2_new(request):
     title = (request.POST.get("title") or "").strip()
     content = (request.POST.get("content") or "").strip()
 
-    if not all([template_code, department, title, content]):
-        return HttpResponse("필수값 누락", status=400)
-
-    ADMIN_START_TEMPLATES = {"ADMIN_TO_CHAIR", "ADMIN_TO_AUDITOR_CHAIR"}
-
-    if template_code in ADMIN_START_TEMPLATES:
-        if not admin_name:
-            return HttpResponse("총무 계정이 설정되어 있지 않습니다.", status=400)
-        name = admin_name
-        department = "(주)새진"
-    else:
-        if admin_name and name == admin_name:
-            return HttpResponse("담당부터 시작하는 결재라인에서는 총무를 성명으로 선택할 수 없습니다.", status=400)
-        if not name:
-            return HttpResponse("필수값 누락", status=400)
-
-    approval = ApprovalRequest.objects.create(
+    applied = apply_form_values(
+        template_code=template_code,
         department=department,
         name=name,
         title=title,
         content=content,
+        admin_name=admin_name,
+    )
+    if not applied["ok"]:
+        return HttpResponse(applied["message"], status=400)
+
+    approval = ApprovalRequest.objects.create(
+        department=applied["department"],
+        name=applied["name"],
+        title=applied["title"],
+        content=applied["content"],
         submit_ip=get_client_ip(request),
     )
 
@@ -304,39 +401,8 @@ def v2_new(request):
             original_name=getattr(f, "name", "")[:255],
         )
 
-    route = build_route_for_approval(approval=approval, template_code=template_code)
-
-    if route.template_code in ("ADMIN_TO_CHAIR", "ADMIN_TO_AUDITOR_CHAIR"):
-        current_role = get_current_actor_role(route)
-        if current_role == "admin":
-            approve_current_step(
-                route=route,
-                acted_ip=get_client_ip(request),
-                acted_device=(request.META.get("HTTP_USER_AGENT", "")[:50]),
-                acted_anon_id=request.COOKIES.get("anon_id", ""),
-            )
-            route.refresh_from_db()
-
-    # ✅ 상신 알림
-    dispatch_notifications(
-        template_code=route.template_code,
-        event="submit",
-        actor_role="",
-        drafter_name=approval.name,
-        drafter_department=approval.department,
-        text=build_tg_text(
-            kind="submit",
-            approval=approval,
-            route=route,
-            template_code=route.template_code,
-            actor_role="",
-            actor_action_kr="",
-            request=request,
-        ),
-    )
-
+    rebuild_route_after_edit(request=request, approval=approval, template_code=applied["template_code"])
     return redirect(f"/approval/v2/{approval.id}/")
-
 
 # =========================
 # v2 detail
@@ -346,13 +412,92 @@ def v2_detail(request, pk: int):
     route = a.route_v2
     steps = route.steps.order_by("order")
     actor_role = get_current_actor_role(route)
+    can_edit = can_edit_approval(route)
 
     return render(
         request,
         "approvals_v2/detail.html",
-        {"approval": a, "route": route, "steps": steps, "actor_role": actor_role},
+        {
+            "approval": a,
+            "route": route,
+            "steps": steps,
+            "actor_role": actor_role,
+            "can_edit": can_edit,
+        },
     )
 
+def v2_edit(request, pk: int):
+    approval = get_object_or_404(ApprovalRequest, pk=pk)
+    route = approval.route_v2
+
+    if not can_edit_approval(route):
+        return HttpResponse("이미 결재가 시작되어 수정할 수 없습니다.", status=403)
+
+    admin_obj = TelegramRecipient.objects.filter(
+        is_active=True,
+        role=TelegramRecipient.ROLE_ADMIN,
+    ).order_by("id").first()
+    admin_name = admin_obj.name if admin_obj else ""
+
+    if request.method == "GET":
+        ctx = get_form_base_context()
+        ctx.update(
+            {
+                "mode": "edit",
+                "form_action": f"/approval/v2/{approval.id}/edit/",
+                "submit_label": "수정 저장 후 다시 상신",
+                "preview_label": "📱 스마트폰 미리보기",
+                "approval": approval,
+                "initial": {
+                    "template_code": route.template_code,
+                    "name": approval.name,
+                    "department": approval.department,
+                    "title": approval.title,
+                    "content": approval.content,
+                },
+                "existing_attachments": approval.v2_attachments.all().order_by("id"),
+            }
+        )
+        return render(request, "approvals_v2/new.html", ctx)
+
+    template_code = (request.POST.get("template_code") or "").strip()
+    department = (request.POST.get("department") or "").strip()
+    name = (request.POST.get("name") or "").strip()
+    title = (request.POST.get("title") or "").strip()
+    content = (request.POST.get("content") or "").strip()
+
+    applied = apply_form_values(
+        template_code=template_code,
+        department=department,
+        name=name,
+        title=title,
+        content=content,
+        admin_name=admin_name,
+    )
+    if not applied["ok"]:
+        return HttpResponse(applied["message"], status=400)
+
+    approval.department = applied["department"]
+    approval.name = applied["name"]
+    approval.title = applied["title"]
+    approval.content = applied["content"]
+    approval.submit_ip = get_client_ip(request)
+    approval.save()
+
+    delete_ids = [x for x in request.POST.getlist("delete_attachment_ids") if x.strip().isdigit()]
+    if delete_ids:
+        approval.v2_attachments.filter(id__in=delete_ids).delete()
+
+    files = request.FILES.getlist("attachments")
+    for f in files:
+        ApprovalAttachment.objects.create(
+            approval=approval,
+            file=f,
+            original_name=getattr(f, "name", "")[:255],
+        )
+
+    rebuild_route_after_edit(request=request, approval=approval, template_code=applied["template_code"])
+    return redirect(f"/approval/v2/{approval.id}/")
 
 # =========================
 # approve

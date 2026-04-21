@@ -11,6 +11,7 @@ app_name = "approvals_v2"
 urlpatterns = [
     path("", views.v2_list, name="list"),
     path("new/", views.v2_new, name="new"),
+    path("<int:pk>/edit/", views.v2_edit, name="edit"),
     path("<int:pk>/approve/", views.v2_approve, name="approve"),
     path("<int:pk>/reject/", views.v2_reject, name="reject"),
     path("<int:pk>/", views.v2_detail, name="detail"),

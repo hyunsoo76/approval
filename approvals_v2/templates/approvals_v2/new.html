@@ -1,6 +1,8 @@
 {% extends "base.html" %}
 
-{% block title %}품의서 작성(v2){% endblock %}
+{% block title %}
+  {% if mode == "edit" %}품의서 수정(v2){% else %}품의서 작성(v2){% endif %}
+{% endblock %}
 
 {% block extra_head %}
 <style>
@@ -50,19 +52,16 @@
     .content-table td{height:280px;}
   }
 
-  /* 에디터 안 이미지 기본 */
   #contentEditor img{
     max-width: 100%;
     height: auto;
   }
 
-  /* 선택된 이미지 표시 */
   #contentEditor img.img-selected{
     outline: 2px solid rgba(13,110,253,.6);
     outline-offset: 2px;
   }
 
-  /* 리사이즈 핸들 */
   .img-resize-handle{
     position: absolute;
     width: 14px;
@@ -75,7 +74,6 @@
     z-index: 9999;
   }
 
-  /* 이미지 퀵 버튼 */
   .img-size-toolbar{
     position: absolute;
     display: flex;
@@ -96,20 +94,58 @@
     font-size: 12px;
     cursor: pointer;
   }
+
+  .existing-attach-box{
+    margin-top:8px;
+    padding:10px;
+    border:1px solid #ddd;
+    background:#fafafa;
+    border-radius:8px;
+  }
+  .existing-attach-item{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    padding:6px 0;
+    border-bottom:1px solid #eee;
+    font-size:13px;
+  }
+  .existing-attach-item:last-child{
+    border-bottom:none;
+  }
+  .existing-attach-left{
+    min-width:0;
+    flex:1;
+    word-break:break-all;
+  }
+  .delete-check{
+    white-space:nowrap;
+    font-size:12px;
+    color:#b00020;
+  }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="paper">
 
-  <form method="post" action="/approval/v2/new/" enctype="multipart/form-data">
+  <form method="post" action="{{ form_action }}" enctype="multipart/form-data" id="approvalForm">
     {% csrf_token %}
 
     <div class="header-wrapper">
       <div class="header-left">
-        <div class="title-row"><h1>품 의 서</h1></div>
+        <div class="title-row">
+          <h1>{% if mode == "edit" %}품 의 서 수정{% else %}품 의 서{% endif %}</h1>
+        </div>
         <div class="date-row">
-          <span class="date-text">작성일: {{ now|default:"-" }}</span>
+          <span class="date-text">
+            {% if mode == "edit" and approval %}
+              작성일: {{ approval.created_at|date:"Y-m-d H:i" }}
+            {% else %}
+              작성일: {{ now|default:"-" }}
+            {% endif %}
+          </span>
         </div>
       </div>
 
@@ -133,7 +169,6 @@
         </td>
       </tr>
 
-      <!-- ✅ 자리 변경: 성명 -> 소속 -->
       <tr>
         <th>성명</th>
         <td>
@@ -156,7 +191,7 @@
     <table class="subject-table">
       <tr>
         <th style="width:70px;">제목</th>
-        <td><input type="text" name="title" placeholder="제목을 입력하세요" required></td>
+        <td><input type="text" name="title" id="titleInput" placeholder="제목을 입력하세요" required></td>
       </tr>
     </table>
 
@@ -166,28 +201,44 @@
         <td>
           <div id="contentEditor"
                contenteditable="true"
-               style="min-height:100%; padding:8px; outline:none; white-space:pre-wrap; word-break:break-word;">
-          </div>
+               style="min-height:100%; padding:8px; outline:none; white-space:pre-wrap; word-break:break-word;"></div>
           <input type="hidden" name="content" id="contentHidden" required>
         </td>
       </tr>
     </table>
 
-    <button type="button" class="btn" id="mobileUploadBtn">
-        📷 휴대폰 촬영 업로드
-      </button>
-      <div id="qrBox" style="margin-top:10px;"></div>
+    <div class="btn-row" style="margin-top:10px;">
+      <button type="button" class="btn" id="mobilePreviewBtn">{{ preview_label|default:"📱 스마트폰 미리보기" }}</button>
+      <button type="button" class="btn" id="mobileUploadBtn">📷 휴대폰 촬영 업로드</button>
+    </div>
+    <div id="qrBox" style="margin-top:10px;"></div>
 
-    <table class="info-table" style="margin-top:-1px;">
+    <table class="info-table" style="margin-top:14px;">
       <tr>
         <th style="width:70px;">첨부</th>
         <td colspan="3">
+          {% if mode == "edit" and existing_attachments %}
+            <div class="existing-attach-box">
+              <div style="font-weight:700; margin-bottom:6px;">기존 첨부</div>
+              {% for f in existing_attachments %}
+                <div class="existing-attach-item">
+                  <div class="existing-attach-left">
+                    <a href="{{ f.file.url }}" target="_blank" rel="noopener">
+                      {{ f.original_name|default:f.file.name }}
+                    </a>
+                  </div>
+                  <label class="delete-check">
+                    <input type="checkbox" name="delete_attachment_ids" value="{{ f.id }}">
+                    삭제
+                  </label>
+                </div>
+              {% endfor %}
+            </div>
+          {% endif %}
+
           <input type="file" id="attachmentsInput" name="attachments" multiple style="display:none;">
-          <button type="button" class="btn" id="addFilesBtn">파일 추가</button>
+          <button type="button" class="btn" id="addFilesBtn" style="margin-top:8px;">파일 추가</button>
           <div id="fileList" style="margin-top:6px; font-size:13px; color:#333;"></div>
-          <!-- <div style="font-size:12px; color:#666; margin-top:4px;">
-            이미지는 위 내용란에 스크린샷으로 붙여넣기 하면 결재자가 바로 확인 가능
-          </div> -->
         </td>
       </tr>
     </table>
@@ -197,8 +248,12 @@
     </div>
 
     <div class="btn-row">
-      <button class="btn primary" type="submit">상신</button>
-      <a class="btn" href="/approval/v2/">리스트</a>
+      <button class="btn primary" type="submit">{{ submit_label|default:"상신" }}</button>
+      {% if mode == "edit" and approval %}
+        <a class="btn" href="/approval/v2/{{ approval.id }}/">상세로 돌아가기</a>
+      {% else %}
+        <a class="btn" href="/approval/v2/">리스트</a>
+      {% endif %}
     </div>
   </form>
 
@@ -206,6 +261,7 @@
 
 {{ drafters|json_script:"drafters-data" }}
 {{ admins|json_script:"admins-data" }}
+{{ initial|json_script:"initial-data" }}
 {% endblock %}
 
 {% block extra_script %}
@@ -213,6 +269,8 @@
   const tpl  = document.getElementById("template_code");
   const head = document.getElementById("signHead");
   const body = document.getElementById("signBody");
+
+  const INITIAL = JSON.parse(document.getElementById("initial-data").textContent || "{}");
 
   function renderSign(cols){
     head.innerHTML = "";
@@ -228,15 +286,17 @@
     });
   }
 
+  function getSignLabels(v){
+    if(v === "ADMIN_FINAL") return ["기안","총무"];
+    if(v === "NORMAL") return ["기안","총무","회장"];
+    if(v === "ADMIN_TO_CHAIR") return ["총무","회장"];
+    if(v === "ADMIN_TO_AUDITOR_CHAIR") return ["총무","감사","회장"];
+    return ["-"];
+  }
+
   function onTpl(){
     const v = tpl.value;
-
-    if(v === "ADMIN_FINAL") renderSign(["기안","총무"]);
-    else if(v === "NORMAL") renderSign(["기안","총무","회장"]);
-    else if(v === "ADMIN_TO_CHAIR") renderSign(["총무","회장"]);
-    else if(v === "ADMIN_TO_AUDITOR_CHAIR") renderSign(["총무","감사","회장"]);
-    else renderSign(["-"]);
-
+    renderSign(getSignLabels(v));
     syncNameOptions();
   }
   tpl.addEventListener("change", onTpl);
@@ -249,6 +309,7 @@
   const nameSelect = document.getElementById("nameSelect");
   const nameHint   = document.getElementById("nameHint");
   const deptInput  = document.getElementById("deptInput");
+  const titleInput = document.getElementById("titleInput");
 
   const DEFAULT_ADMIN_DEPT = "(주)새진";
 
@@ -266,7 +327,6 @@
       const opt = document.createElement("option");
       opt.value = u.name;
       opt.textContent = u.name;
-      // ✅ views에서 department 내려주면 여기로 들어옴
       opt.dataset.dept = (u.department || "");
       nameSelect.appendChild(opt);
     });
@@ -286,8 +346,6 @@
 
     const opt = nameSelect.options[nameSelect.selectedIndex];
     const dept = (opt && opt.dataset) ? (opt.dataset.dept || "") : "";
-
-    // ✅ 값이 있으면 그대로, 없으면 빈칸
     deptInput.value = dept;
   }
 
@@ -298,50 +356,59 @@
   function syncNameOptions(){
     const v = tpl.value;
 
-    // 총무 시작 템플릿: 총무만 노출 + 자동 선택
     if (v === "ADMIN_TO_CHAIR" || v === "ADMIN_TO_AUDITOR_CHAIR") {
       setNameOptions(ADMINS, ADMIN_NAME || (ADMINS[0] ? ADMINS[0].name : ""));
-      if (nameHint) nameHint.style.display = "block";
+      if (nameHint) {
+        nameHint.style.display = "block";
+        nameHint.textContent = "총무 시작 결재선입니다.";
+      }
 
-      // ✅ 자동선택된 총무 기준으로 dept 채우기
       syncDeptBySelectedName();
-
-      // ✅ 그래도 dept가 비어있으면 기본값
       if (deptInput && !deptInput.value.trim()) {
         deptInput.value = DEFAULT_ADMIN_DEPT;
       }
       return;
     }
 
-    // 담당 시작 템플릿: 담당만 노출
     if (v === "ADMIN_FINAL" || v === "NORMAL") {
-      setNameOptions(DRAFTERS, "");
+      setNameOptions(DRAFTERS, INITIAL.name || "");
       if (nameHint){
         nameHint.style.display = "none";
         nameHint.textContent = "";
       }
 
-      // ✅ 담당 선택 전이므로 소속은 비움
-      if (deptInput) deptInput.value = "";
+      syncDeptBySelectedName();
+      if (deptInput && INITIAL.department && !deptInput.value.trim()) {
+        deptInput.value = INITIAL.department;
+      }
       return;
     }
 
-    // 결재선 선택 전(기본)
-    setNameOptions(DRAFTERS, "");
+    setNameOptions(DRAFTERS, INITIAL.name || "");
     if (nameHint){
       nameHint.style.display = "none";
       nameHint.textContent = "";
     }
-    if (deptInput) deptInput.value = "";
+    if (deptInput && INITIAL.department) deptInput.value = INITIAL.department;
   }
 
-  // 초기 렌더
-  onTpl();
-
-  // contenteditable -> hidden
-  const form   = document.querySelector('form[action="/approval/v2/new/"]');
+  const form   = document.getElementById("approvalForm");
   const editor = document.getElementById("contentEditor");
   const hidden = document.getElementById("contentHidden");
+
+  if (tpl && INITIAL.template_code) {
+    tpl.value = INITIAL.template_code;
+  }
+
+  if (titleInput && INITIAL.title) {
+    titleInput.value = INITIAL.title;
+  }
+
+  if (editor && INITIAL.content) {
+    editor.innerHTML = INITIAL.content;
+  }
+
+  onTpl();
 
   if (form && editor && hidden) {
     form.addEventListener("submit", () => {
@@ -387,7 +454,6 @@
     });
   }
 
-  // 첨부 누적
   const attachmentsInput = document.getElementById("attachmentsInput");
   const addFilesBtn = document.getElementById("addFilesBtn");
   const fileList = document.getElementById("fileList");
@@ -397,7 +463,7 @@
   function renderFileList(){
     if (!fileList) return;
     if (selectedFiles.length === 0) {
-      fileList.textContent = "선택된 파일 없음";
+      fileList.textContent = "새로 추가할 파일 없음";
       return;
     }
     fileList.innerHTML = selectedFiles
@@ -422,18 +488,15 @@
     renderFileList();
   }
 
-    // ====== 모바일 업로드 QR + 폴링 (안전버전) ======
   (function(){
     const btn = document.getElementById("mobileUploadBtn");
     const qrBox = document.getElementById("qrBox");
     const editor = document.getElementById("contentEditor");
 
     if(!btn || !qrBox || !editor){
-      console.error("mobile upload dom missing", {btn, qrBox, editor});
       return;
     }
 
-    // ✅ randomUUID 안전하게 (없으면 fallback)
     function makeToken(){
       try{
         if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
@@ -442,7 +505,7 @@
     }
 
     const uploadToken = makeToken();
-    let lastImageUrl = ""; // ✅ 중복삽입 방지
+    let lastImageUrl = "";
 
     btn.addEventListener("click", () => {
       const url = window.location.origin + "/approval/v2/mobile-upload/" + uploadToken + "/";
@@ -469,7 +532,6 @@
         .then(r => r.ok ? r.json() : null)
         .then(data => {
           if(!data || !data.image_url) return;
-
           if(data.image_url === lastImageUrl) return;
           lastImageUrl = data.image_url;
 
@@ -486,126 +548,301 @@
   })();
 
   (function(){
-  const editor = document.getElementById('contentEditor');
-  if (!editor) return;
+    const editor = document.getElementById('contentEditor');
+    if (!editor) return;
 
-  let selectedImg = null;
-  let handleEl = null;
-  let toolbarEl = null;
+    let selectedImg = null;
+    let handleEl = null;
+    let toolbarEl = null;
 
-  let dragging = false;
-  let startX = 0;
-  let startW = 0;
+    let dragging = false;
+    let startX = 0;
+    let startW = 0;
 
-  function removeUI(){
-    if (handleEl) { handleEl.remove(); handleEl = null; }
-    if (toolbarEl) { toolbarEl.remove(); toolbarEl = null; }
-    if (selectedImg) { selectedImg.classList.remove('img-selected'); }
-    selectedImg = null;
-  }
-
-  function placeHandleAndToolbar(img){
-    // 핸들
-    const rect = img.getBoundingClientRect();
-    const pageX = window.scrollX;
-    const pageY = window.scrollY;
-
-    handleEl = document.createElement('div');
-    handleEl.className = 'img-resize-handle';
-    document.body.appendChild(handleEl);
-
-    // 툴바(50/75/100)
-    toolbarEl = document.createElement('div');
-    toolbarEl.className = 'img-size-toolbar';
-    toolbarEl.innerHTML = `
-      <button type="button" data-pct="50">50%</button>
-      <button type="button" data-pct="75">75%</button>
-      <button type="button" data-pct="100">100%</button>
-    `;
-    document.body.appendChild(toolbarEl);
-
-    function reposition(){
-      const r = img.getBoundingClientRect();
-      const x = window.scrollX;
-      const y = window.scrollY;
-
-      // 핸들: 오른쪽 아래
-      handleEl.style.left = (x + r.right - 8) + 'px';
-      handleEl.style.top  = (y + r.bottom - 8) + 'px';
-
-      // 툴바: 이미지 위쪽 오른쪽
-      toolbarEl.style.left = (x + r.right - 170) + 'px';
-      toolbarEl.style.top  = (y + r.top - 44) + 'px';
+    function removeUI(){
+      if (handleEl) { handleEl.remove(); handleEl = null; }
+      if (toolbarEl) { toolbarEl.remove(); toolbarEl = null; }
+      if (selectedImg) { selectedImg.classList.remove('img-selected'); }
+      selectedImg = null;
     }
 
-    reposition();
+    function placeHandleAndToolbar(img){
+      handleEl = document.createElement('div');
+      handleEl.className = 'img-resize-handle';
+      document.body.appendChild(handleEl);
 
-    // 스크롤/리사이즈 시 따라가기
-    const onWin = () => { if (selectedImg === img) reposition(); };
-    window.addEventListener('scroll', onWin, { passive:true });
-    window.addEventListener('resize', onWin);
+      toolbarEl = document.createElement('div');
+      toolbarEl.className = 'img-size-toolbar';
+      toolbarEl.innerHTML = `
+        <button type="button" data-pct="50">50%</button>
+        <button type="button" data-pct="75">75%</button>
+        <button type="button" data-pct="100">100%</button>
+      `;
+      document.body.appendChild(toolbarEl);
 
-    // 툴바 버튼
-    toolbarEl.addEventListener('click', (e) => {
-      const btn = e.target.closest('button[data-pct]');
-      if (!btn) return;
-      const pct = parseInt(btn.dataset.pct, 10);
-      // 에디터 폭 기준 퍼센트
-      img.style.width = pct + '%';
-      img.style.height = 'auto';
+      function reposition(){
+        const r = img.getBoundingClientRect();
+        const x = window.scrollX;
+        const y = window.scrollY;
+
+        handleEl.style.left = (x + r.right - 8) + 'px';
+        handleEl.style.top  = (y + r.bottom - 8) + 'px';
+
+        toolbarEl.style.left = (x + r.right - 170) + 'px';
+        toolbarEl.style.top  = (y + r.top - 44) + 'px';
+      }
+
       reposition();
+
+      const onWin = () => { if (selectedImg === img) reposition(); };
+      window.addEventListener('scroll', onWin, { passive:true });
+      window.addEventListener('resize', onWin);
+
+      toolbarEl.addEventListener('click', (e) => {
+        const btn = e.target.closest('button[data-pct]');
+        if (!btn) return;
+        const pct = parseInt(btn.dataset.pct, 10);
+        img.style.width = pct + '%';
+        img.style.height = 'auto';
+        reposition();
+      });
+
+      function startDrag(ev){
+        ev.preventDefault();
+        dragging = true;
+        startX = ev.clientX;
+        startW = img.getBoundingClientRect().width;
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', endDrag);
+      }
+
+      function onMove(ev){
+        if (!dragging) return;
+        const dx = ev.clientX - startX;
+        const newW = Math.max(60, startW + dx);
+        img.style.width = newW + 'px';
+        img.style.height = 'auto';
+        reposition();
+      }
+
+      function endDrag(){
+        dragging = false;
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', endDrag);
+      }
+
+      handleEl.addEventListener('mousedown', startDrag);
+    }
+
+    editor.addEventListener('click', (e) => {
+      const img = e.target && e.target.tagName === 'IMG' ? e.target : null;
+      if (!img) return;
+
+      removeUI();
+      selectedImg = img;
+      selectedImg.classList.add('img-selected');
+      placeHandleAndToolbar(selectedImg);
     });
 
-    // 드래그 리사이즈
-    function startDrag(ev){
-      ev.preventDefault();
-      dragging = true;
-      startX = ev.clientX;
-      startW = img.getBoundingClientRect().width;
-      document.addEventListener('mousemove', onMove);
-      document.addEventListener('mouseup', endDrag);
+    document.addEventListener('click', (e) => {
+      if (!selectedImg) return;
+      const inEditor = editor.contains(e.target);
+      const inUI = (handleEl && handleEl.contains(e.target)) || (toolbarEl && toolbarEl.contains(e.target));
+      if (!inEditor && !inUI) removeUI();
+    });
+  })();
+
+  (function(){
+    const previewBtn = document.getElementById("mobilePreviewBtn");
+    if (!previewBtn) return;
+
+    function escapeHtml(str){
+      return String(str || "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#39;");
     }
 
-    function onMove(ev){
-      if (!dragging) return;
-      const dx = ev.clientX - startX;
-      const newW = Math.max(60, startW + dx); // 최소 폭 60px
-      img.style.width = newW + 'px';
-      img.style.height = 'auto';
-      reposition();
+    function getCurrentName(){
+      return nameSelect ? (nameSelect.value || "") : "";
     }
 
-    function endDrag(){
-      dragging = false;
-      document.removeEventListener('mousemove', onMove);
-      document.removeEventListener('mouseup', endDrag);
+    function getExistingAttachmentsHtml(){
+      const items = Array.from(document.querySelectorAll(".existing-attach-item .existing-attach-left a"));
+      if (!items.length) return "";
+      return items.map(el => `<li>${escapeHtml(el.textContent.trim())}</li>`).join("");
     }
 
-    handleEl.addEventListener('mousedown', startDrag);
+    function getNewFilesHtml(){
+      if (!selectedFiles.length) return "";
+      return selectedFiles.map(f => `<li>${escapeHtml(f.name)}</li>`).join("");
+    }
+
+    function getPreviewHtml(){
+      const title = titleInput ? titleInput.value : "";
+      const department = deptInput ? deptInput.value : "";
+      const name = getCurrentName();
+      const signLabels = getSignLabels(tpl ? tpl.value : "");
+      const contentHtml = editor ? editor.innerHTML : "";
+
+      const existingList = getExistingAttachmentsHtml();
+      const newList = getNewFilesHtml();
+      const hasAttachments = existingList || newList;
+
+      return `
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>스마트폰 미리보기</title>
+<style>
+  body{
+    margin:0;
+    background:#e9ecef;
+    font-family:-apple-system,BlinkMacSystemFont,"맑은 고딕",sans-serif;
   }
+  .wrap{
+    max-width:430px;
+    margin:0 auto;
+    padding:14px;
+  }
+  .phone{
+    background:#fff;
+    border-radius:18px;
+    box-shadow:0 8px 30px rgba(0,0,0,.12);
+    overflow:hidden;
+    border:1px solid #ddd;
+  }
+  .top{
+    padding:14px 16px;
+    border-bottom:1px solid #eee;
+    font-weight:800;
+    text-align:center;
+  }
+  .section{
+    padding:14px 16px;
+    border-bottom:1px solid #f1f1f1;
+  }
+  .row-title{
+    font-size:12px;
+    color:#666;
+    margin-bottom:6px;
+    font-weight:700;
+  }
+  .value{
+    font-size:14px;
+    color:#111;
+    line-height:1.5;
+    word-break:break-word;
+  }
+  .signs{
+    display:flex;
+    gap:8px;
+    flex-wrap:wrap;
+  }
+  .sign{
+    min-width:58px;
+    padding:8px 10px;
+    border:1px solid #ddd;
+    border-radius:10px;
+    text-align:center;
+    font-size:12px;
+    background:#fafafa;
+    font-weight:700;
+  }
+  .content{
+    font-size:14px;
+    line-height:1.6;
+    word-break:break-word;
+  }
+  .content img{
+    max-width:100% !important;
+    height:auto !important;
+    display:block;
+    margin:8px 0;
+  }
+  .content table{
+    width:100% !important;
+    table-layout:fixed;
+    border-collapse:collapse;
+  }
+  .content th,.content td{
+    border:1px solid #ccc;
+    padding:4px;
+    word-break:break-word;
+  }
+  .attach-list{
+    margin:0;
+    padding-left:18px;
+    font-size:13px;
+    line-height:1.6;
+  }
+  .footer{
+    padding:12px 16px;
+    background:#fafafa;
+    font-size:12px;
+    color:#666;
+    text-align:center;
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="phone">
+      <div class="top">스마트폰 미리보기</div>
 
-  // 에디터 내 이미지 클릭하면 선택
-  editor.addEventListener('click', (e) => {
-    const img = e.target && e.target.tagName === 'IMG' ? e.target : null;
-    if (!img) return;
+      <div class="section">
+        <div class="row-title">제목</div>
+        <div class="value">${escapeHtml(title)}</div>
+      </div>
 
-    removeUI();
-    selectedImg = img;
-    selectedImg.classList.add('img-selected');
-    placeHandleAndToolbar(selectedImg);
-  });
+      <div class="section">
+        <div class="row-title">소속 / 성명</div>
+        <div class="value">${escapeHtml(department)} / ${escapeHtml(name)}</div>
+      </div>
 
-  // 에디터 밖 클릭하면 해제
-  document.addEventListener('click', (e) => {
-    if (!selectedImg) return;
-    const inEditor = editor.contains(e.target);
-    const inUI = (handleEl && handleEl.contains(e.target)) || (toolbarEl && toolbarEl.contains(e.target));
-    if (!inEditor && !inUI) removeUI();
-  });
+      <div class="section">
+        <div class="row-title">결재선</div>
+        <div class="signs">
+          ${signLabels.map(label => `<div class="sign">${escapeHtml(label)}</div>`).join("")}
+        </div>
+      </div>
 
-})();
+      <div class="section">
+        <div class="row-title">내용</div>
+        <div class="content">${contentHtml || "<div style='color:#999;'>내용 없음</div>"}</div>
+      </div>
 
+      <div class="section">
+        <div class="row-title">첨부목록</div>
+        ${
+          hasAttachments
+            ? `<ul class="attach-list">${existingList}${newList}</ul>`
+            : `<div class="value" style="color:#999;">첨부 없음</div>`
+        }
+      </div>
 
+      <div class="footer">실제 스마트폰 화면과 유사한 확인용 미리보기</div>
+    </div>
+  </div>
+</body>
+</html>
+      `;
+    }
 
+    previewBtn.addEventListener("click", () => {
+      const w = window.open("", "_blank", "width=430,height=860");
+      if (!w) {
+        alert("팝업이 차단되었습니다. 팝업 허용 후 다시 시도하세요.");
+        return;
+      }
+      w.document.open();
+      w.document.write(getPreviewHtml());
+      w.document.close();
+    });
+  })();
 </script>
 {% endblock %}

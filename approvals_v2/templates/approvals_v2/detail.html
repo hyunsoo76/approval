@@ -538,16 +538,23 @@
 
   <!-- ✅ (수정) 완료가 아닐 때만 기존 위치에 PDF 버튼 유지 -->
   {% if route.status != "completed" %}
-    <a class="btn-link" href="/approval/v2/{{ approval.id }}/pdf/?download=1" target="_blank">
-      📄 PDF 저장
-    </a>
+    <div class="btn-row" style="margin-top:18px;">
+      {% if can_edit %}
+        <a class="btn-link" href="/approval/v2/{{ approval.id }}/edit/">수정</a>
+      {% endif %}
+
+      <a class="btn-link" href="/approval/v2/{{ approval.id }}/pdf/?download=1" target="_blank">
+        📄 PDF 저장
+      </a>
+
+      <a class="btn-link" href="/approval/v2/">리스트로 돌아가기</a>
+    </div>
+  {% else %}
+    <div class="btn-row" style="margin-top:18px;">
+      <a class="btn-link" href="/approval/v2/">리스트로 돌아가기</a>
+    </div>
   {% endif %}
   
-  <div class="btn-row" style="margin-top:18px;">
-    <a class="btn-link" href="/approval/v2/">리스트로 돌아가기</a>
-  </div>
-</div>
-
 <!-- ✅ 커스텀 이미지 뷰어 -->
 <div id="imageViewer">
   <div id="viewerClose">✕</div>
