@@ -6,6 +6,10 @@ from django.template.loader import render_to_string
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 
+import logging
+import traceback
+from django.db import transaction
+
 from approvals.models import ApprovalRequest
 from approvals_v2.models import ApprovalAttachment, TelegramRecipient
 from approvals_v2.notifications import dispatch_notifications
@@ -25,6 +29,7 @@ ROLE_KR = {
     "auditor": "감사",
     "chairman": "회장",
 }
+logger = logging.getLogger(__name__)
 
 def get_client_ip(request) -> str:
     xff = (request.META.get("HTTP_X_FORWARDED_FOR") or "").strip()
@@ -228,14 +233,28 @@ def apply_form_values(template_code: str, department: str, name: str, title: str
 def rebuild_route_after_edit(request, approval, template_code: str):
     """
     기존 route/step 제거 후 현재 입력값 기준으로 다시 상신
+    - reverse one-to-one 캐시 꼬임 방지
+    - 알림 실패가 수정 저장 자체를 막지 않도록 분리
     """
     old_route = getattr(approval, "route_v2", None)
-    if old_route:
-        old_route.steps.all().delete()
-        old_route.delete()
 
+    if old_route:
+        old_route_id = old_route.id
+
+        # 1) step 먼저 삭제
+        old_route.steps.all().delete()
+
+        # 2) route 삭제
+        type(old_route).objects.filter(id=old_route_id).delete()
+
+        # 3) approval 객체에 남아있는 route_v2 캐시 제거
+        if hasattr(approval, "_state") and hasattr(approval._state, "fields_cache"):
+            approval._state.fields_cache.pop("route_v2", None)
+
+    # 4) 새 결재선 생성
     route = build_route_for_approval(approval=approval, template_code=template_code)
 
+    # 5) 총무 시작 템플릿 자동 승인 유지
     if route.template_code in ADMIN_START_TEMPLATES:
         current_role = get_current_actor_role(route)
         if current_role == "admin":
@@ -247,25 +266,28 @@ def rebuild_route_after_edit(request, approval, template_code: str):
             )
             route.refresh_from_db()
 
-    dispatch_notifications(
-        template_code=route.template_code,
-        event="submit",
-        actor_role="",
-        drafter_name=approval.name,
-        drafter_department=approval.department,
-        text=build_tg_text(
-            kind="submit",
-            approval=approval,
-            route=route,
+    # 6) 알림 실패는 저장을 막지 않음
+    try:
+        dispatch_notifications(
             template_code=route.template_code,
+            event="submit",
             actor_role="",
-            actor_action_kr="",
-            request=request,
-        ),
-    )
+            drafter_name=approval.name,
+            drafter_department=approval.department,
+            text=build_tg_text(
+                kind="submit",
+                approval=approval,
+                route=route,
+                template_code=route.template_code,
+                actor_role="",
+                actor_action_kr="",
+                request=request,
+            ),
+        )
+    except Exception:
+        logger.exception("v2 edit 재상신 알림 실패")
 
     return route
-
 
 # =========================
 # v2 list
@@ -477,26 +499,40 @@ def v2_edit(request, pk: int):
     if not applied["ok"]:
         return HttpResponse(applied["message"], status=400)
 
-    approval.department = applied["department"]
-    approval.name = applied["name"]
-    approval.title = applied["title"]
-    approval.content = applied["content"]
-    approval.submit_ip = get_client_ip(request)
-    approval.save()
+    try:
+        with transaction.atomic():
+            approval.department = applied["department"]
+            approval.name = applied["name"]
+            approval.title = applied["title"]
+            approval.content = applied["content"]
+            approval.submit_ip = get_client_ip(request)
+            approval.save()
 
-    delete_ids = [x for x in request.POST.getlist("delete_attachment_ids") if x.strip().isdigit()]
-    if delete_ids:
-        approval.v2_attachments.filter(id__in=delete_ids).delete()
+            delete_ids = [x for x in request.POST.getlist("delete_attachment_ids") if x.strip().isdigit()]
+            if delete_ids:
+                approval.v2_attachments.filter(id__in=delete_ids).delete()
 
-    files = request.FILES.getlist("attachments")
-    for f in files:
-        ApprovalAttachment.objects.create(
-            approval=approval,
-            file=f,
-            original_name=getattr(f, "name", "")[:255],
+            files = request.FILES.getlist("attachments")
+            for f in files:
+                ApprovalAttachment.objects.create(
+                    approval=approval,
+                    file=f,
+                    original_name=getattr(f, "name", "")[:255],
+                )
+
+            rebuild_route_after_edit(
+                request=request,
+                approval=approval,
+                template_code=applied["template_code"],
+            )
+
+    except Exception as e:
+        logger.exception("v2_edit 저장 실패")
+        return HttpResponse(
+            "수정 저장 중 오류가 발생했습니다: " + str(e) + "\n\n" + traceback.format_exc(),
+            status=500
         )
 
-    rebuild_route_after_edit(request=request, approval=approval, template_code=applied["template_code"])
     return redirect(f"/approval/v2/{approval.id}/")
 
 # =========================
