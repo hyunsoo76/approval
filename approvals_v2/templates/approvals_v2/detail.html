@@ -162,6 +162,13 @@
   .content-value img { max-width:100% !important; height:auto !important; display:block; }
   .content-value table { max-width:100% !important; width:100% !important; table-layout:fixed; border-collapse:collapse; }
   .content-value th, .content-value td { word-break:break-word; overflow-wrap:anywhere; }
+  .payment-table{width:100%;border-collapse:collapse;table-layout:fixed;margin-bottom:10px;}
+  .payment-table th,.payment-table td{border:1px solid #000;padding:6px;font-size:13px;word-break:break-word;}
+  .payment-table th{text-align:center;background:#f8f8f8;font-weight:700;}
+  .payment-table .no-col{width:42px;text-align:center;}
+  .payment-table .bank-col{width:110px;}
+  .payment-table .amount-col{width:130px;}
+  .payment-table td.no-col{text-align:center;color:#444;font-weight:700;}
 
   .hint { font-size:13px; color:#444; margin-top:10px; }
 
@@ -222,6 +229,11 @@
       padding:6px;
       font-size:13px;
     }
+    .payment-table{table-layout:auto;}
+    .payment-table th,.payment-table td{padding:4px;font-size:12px;}
+    .payment-table .no-col{width:32px;}
+    .payment-table .bank-col{width:72px;}
+    .payment-table .amount-col{width:96px;}
   }
 
   /* ===== 첨부 ===== */
@@ -620,6 +632,33 @@
       <td><div class="content-value">{{ approval.content|safe }}</div></td>
     </tr>
   </table>
+
+  {% if approval.payment_accounts %}
+    <table class="payment-table">
+      <thead>
+        <tr>
+          <th class="no-col">NO</th>
+          <th class="bank-col">은행명</th>
+          <th>계좌번호</th>
+          <th>계좌명</th>
+          <th class="amount-col">금액</th>
+          <th>비고</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in approval.payment_accounts %}
+          <tr>
+            <td class="no-col">{{ forloop.counter }}</td>
+            <td>{{ row.bank }}</td>
+            <td>{{ row.account_number }}</td>
+            <td>{{ row.account_name }}</td>
+            <td>{{ row.amount }}</td>
+            <td>{{ row.note }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% endif %}
 
   {% for s in steps %}
     {% if s.state == "rejected" and s.reject_reason %}

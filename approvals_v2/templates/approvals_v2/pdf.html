@@ -181,6 +181,28 @@
       word-break: break-word;
       overflow-wrap: anywhere;
     }
+    .payment-table{
+      width:100%;
+      border-collapse:collapse;
+      table-layout:fixed;
+      margin-bottom:10px;
+    }
+    .payment-table th,
+    .payment-table td{
+      border:1px solid #111;
+      padding:6px;
+      font-size:11px;
+      word-break:break-word;
+    }
+    .payment-table th{
+      text-align:center;
+      background:#f6f6f6;
+      font-weight:800;
+    }
+    .payment-table .no-col{width:34px;text-align:center;}
+    .payment-table .bank-col{width:86px;}
+    .payment-table .amount-col{width:100px;}
+    .payment-table td.no-col{font-weight:700;color:#444;}
 
     /* ===== 첨부 ===== */
     .attach-box{
@@ -328,6 +350,33 @@
       </td>
     </tr>
   </table>
+
+  {% if approval.payment_accounts %}
+    <table class="payment-table no-break">
+      <thead>
+        <tr>
+          <th class="no-col">NO</th>
+          <th class="bank-col">은행명</th>
+          <th>계좌번호</th>
+          <th>계좌명</th>
+          <th class="amount-col">금액</th>
+          <th>비고</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in approval.payment_accounts %}
+          <tr>
+            <td class="no-col">{{ forloop.counter }}</td>
+            <td>{{ row.bank }}</td>
+            <td>{{ row.account_number }}</td>
+            <td>{{ row.account_name }}</td>
+            <td>{{ row.amount }}</td>
+            <td>{{ row.note }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% endif %}
 
   <!-- 반려 사유(있을 때만) -->
   {% for s in steps %}

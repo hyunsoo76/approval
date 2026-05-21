@@ -43,6 +43,38 @@ def get_client_ip(request) -> str:
     return (request.META.get("REMOTE_ADDR") or "").strip()
 
 
+def parse_payment_accounts(request):
+    banks = request.POST.getlist("payment_bank[]")
+    account_numbers = request.POST.getlist("payment_account_number[]")
+    account_names = request.POST.getlist("payment_account_name[]")
+    amounts = request.POST.getlist("payment_amount[]")
+    notes = request.POST.getlist("payment_note[]")
+
+    max_len = max(
+        len(banks),
+        len(account_numbers),
+        len(account_names),
+        len(amounts),
+        len(notes),
+        0,
+    )
+
+    rows = []
+    for idx in range(max_len):
+        row = {
+            "bank": (banks[idx] if idx < len(banks) else "").strip(),
+            "account_number": (account_numbers[idx] if idx < len(account_numbers) else "").strip(),
+            "account_name": (account_names[idx] if idx < len(account_names) else "").strip(),
+            "amount": (amounts[idx] if idx < len(amounts) else "").strip(),
+            "note": (notes[idx] if idx < len(notes) else "").strip(),
+        }
+
+        if any(row.values()):
+            rows.append(row)
+
+    return rows
+
+
 def role_kr(role: str) -> str:
     return ROLE_KR.get(role or "", role or "")
 
@@ -385,6 +417,7 @@ def v2_new(request):
                     "title": "",
                     "content": "",
                 },
+                "payment_accounts": [],
                 "existing_attachments": [],
             }
         )
@@ -395,6 +428,7 @@ def v2_new(request):
     name = (request.POST.get("name") or "").strip()
     title = (request.POST.get("title") or "").strip()
     content = (request.POST.get("content") or "").strip()
+    payment_accounts = parse_payment_accounts(request)
 
     applied = apply_form_values(
         template_code=template_code,
@@ -412,6 +446,7 @@ def v2_new(request):
         name=applied["name"],
         title=applied["title"],
         content=applied["content"],
+        payment_accounts=payment_accounts,
         submit_ip=get_client_ip(request),
     )
 
@@ -477,6 +512,7 @@ def v2_edit(request, pk: int):
                     "title": approval.title,
                     "content": approval.content,
                 },
+                "payment_accounts": approval.payment_accounts or [],
                 "existing_attachments": approval.v2_attachments.all().order_by("id"),
             }
         )
@@ -487,6 +523,7 @@ def v2_edit(request, pk: int):
     name = (request.POST.get("name") or "").strip()
     title = (request.POST.get("title") or "").strip()
     content = (request.POST.get("content") or "").strip()
+    payment_accounts = parse_payment_accounts(request)
 
     applied = apply_form_values(
         template_code=template_code,
@@ -505,6 +542,7 @@ def v2_edit(request, pk: int):
             approval.name = applied["name"]
             approval.title = applied["title"]
             approval.content = applied["content"]
+            approval.payment_accounts = payment_accounts
             approval.submit_ip = get_client_ip(request)
             approval.save()
 
