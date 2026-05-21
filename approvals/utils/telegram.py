@@ -2,6 +2,10 @@ import os
 import requests
 
 def send_telegram(text: str) -> None:
+    # TEST ONLY: Disable real Telegram delivery during approval testing.
+    # Revert by removing this return after testing is finished.
+    return
+
     token = os.environ.get("TELEGRAM_BOT_TOKEN")
     chat_id = os.environ.get("TELEGRAM_CHAT_ID")
 
