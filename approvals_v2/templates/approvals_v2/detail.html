@@ -8,6 +8,45 @@
 <style>
   body { font-family: -apple-system, BlinkMacSystemFont, "맑은 고딕", sans-serif; margin: 20px; }
   .paper { width: 100%; max-width: 900px; border: 1px solid #000; padding: 20px; box-sizing: border-box; margin: 0 auto; background: #fff; }
+  .brand-home{
+    width:100%;
+    max-width:900px;
+    margin:0 auto 14px auto;
+    display:flex;
+    align-items:center;
+    gap:12px;
+    color:#222;
+    text-decoration:none;
+  }
+  .brand-home:hover{ color:#222; text-decoration:none; }
+  .brand-home .brand-stamp-logo{ height:50px; width:auto; }
+  .brand-home .system-wrap{
+    display:inline-block;
+    line-height:1.2;
+    position:relative;
+    padding-bottom:6px;
+  }
+  .brand-home .system-wrap::after{
+    content:"";
+    position:absolute;
+    left:0;
+    right:0;
+    bottom:0;
+    height:1.4px;
+    background:#cfcfcf;
+  }
+  .brand-home .brand-title{
+    font-size:20px;
+    font-weight:800;
+    letter-spacing:0.02em;
+    color:#222;
+  }
+  .brand-home .brand-subtitle{
+    margin-top:2px;
+    font-size:14px;
+    color:#444;
+    font-weight:700;
+  }
 
   .header-wrapper { display:flex; align-items:flex-start; justify-content:center; margin-bottom: 10px; gap: 12px; }
   .header-left { flex:1; text-align:center; }
@@ -150,6 +189,10 @@
   @media (max-width:600px){
     body { margin:10px; font-size:13px; }
     .paper { padding:10px; }
+    .brand-home{ margin-bottom:10px; gap:10px; }
+    .brand-home .brand-stamp-logo{ height:42px; }
+    .brand-home .brand-title{ font-size:18px; }
+    .brand-home .brand-subtitle{ font-size:13px; }
     .header-wrapper { flex-direction:column; align-items:stretch; }
     .title-row h1 { font-size:28px; letter-spacing:0.25em; }
 
@@ -478,6 +521,14 @@
     </div>
   </div>
 </div>
+
+<a class="brand-home" href="/approval/v2/" aria-label="전자결재 홈">
+  <img src="{% static 'img/saecheon_stamp.png' %}" alt="새천년인" class="brand-stamp-logo">
+  <div class="system-wrap">
+    <div class="brand-title">내쇼날새천년</div>
+    <div class="brand-subtitle">전자결재</div>
+  </div>
+</a>
 
 <div class="paper">
   <div class="header-wrapper">
