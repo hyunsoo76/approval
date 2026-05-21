@@ -313,6 +313,47 @@
     transition:transform .15s ease;
     will-change: transform;
   }
+  #viewerFrame{
+    display:none;
+    position:absolute;
+    top:64px;
+    left:68px;
+    right:68px;
+    bottom:64px;
+    width:calc(100% - 136px);
+    height:calc(100% - 128px);
+    border:0;
+    background:#fff;
+    border-radius:8px;
+  }
+  #viewerFileFallback{
+    display:none;
+    position:absolute;
+    top:50%;
+    left:50%;
+    transform:translate(-50%, -50%);
+    width:min(420px, calc(100% - 40px));
+    padding:22px;
+    border-radius:12px;
+    background:#fff;
+    color:#111;
+    text-align:center;
+    box-sizing:border-box;
+  }
+  #viewerFileFallback .file-name{
+    font-weight:800;
+    margin-bottom:14px;
+    word-break:break-all;
+  }
+  #viewerFileFallback a{
+    display:inline-block;
+    padding:10px 14px;
+    border-radius:8px;
+    border:1px solid #111;
+    color:#111;
+    text-decoration:none;
+    font-weight:800;
+  }
   #viewerClose{
     position:absolute;
     top:16px;
@@ -336,6 +377,66 @@
     padding:6px 12px;
     border-radius:20px;
     user-select:none;
+  }
+  #viewerCaption{
+    position:absolute;
+    top:18px;
+    left:18px;
+    right:70px;
+    color:#fff;
+    font-size:14px;
+    font-weight:700;
+    line-height:1.35;
+    background:rgba(0,0,0,0.45);
+    padding:8px 12px;
+    border-radius:10px;
+    user-select:none;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+  .viewer-nav{
+    position:absolute;
+    top:50%;
+    transform:translateY(-50%);
+    width:46px;
+    height:64px;
+    border:0;
+    border-radius:12px;
+    background:rgba(255,255,255,0.18);
+    color:#fff;
+    font-size:42px;
+    line-height:1;
+    cursor:pointer;
+    user-select:none;
+  }
+  .viewer-nav:hover{ background:rgba(255,255,255,0.28); }
+  .viewer-nav:disabled{ opacity:0.25; cursor:default; }
+  #viewerPrev{ left:14px; }
+  #viewerNext{ right:14px; }
+  @media (max-width:600px){
+    .viewer-nav{
+      width:42px;
+      height:58px;
+      font-size:36px;
+      background:rgba(255,255,255,0.14);
+    }
+    #viewerPrev{ left:8px; }
+    #viewerNext{ right:8px; }
+    #viewerCaption{
+      top:14px;
+      left:12px;
+      right:62px;
+      font-size:13px;
+    }
+    #viewerFrame{
+      top:58px;
+      left:10px;
+      right:10px;
+      bottom:58px;
+      width:calc(100% - 20px);
+      height:calc(100% - 116px);
+    }
   }
 </style>
 {% endblock %}
@@ -488,7 +589,13 @@
       <ul class="attach-list">
         {% for f in approval.v2_attachments.all %}
           <li>
-            <a href="{{ f.file.url }}" target="_blank" rel="noopener">
+            <a
+              href="{{ f.file.url }}"
+              target="_blank"
+              rel="noopener"
+              class="attachment-link"
+              data-attachment-name="{{ f.original_name|default:f.file.name }}"
+            >
               {{ f.original_name|default:f.file.name }}
             </a>
             <span class="attach-meta">{{ f.uploaded_at|date:"Y-m-d H:i" }}</span>
@@ -558,8 +665,16 @@
 <!-- ✅ 커스텀 이미지 뷰어 -->
 <div id="imageViewer">
   <div id="viewerClose">✕</div>
+  <div id="viewerCaption"></div>
+  <button type="button" id="viewerPrev" class="viewer-nav" aria-label="이전 첨부파일">‹</button>
+  <button type="button" id="viewerNext" class="viewer-nav" aria-label="다음 첨부파일">›</button>
   <div id="viewerCounter"></div>
   <img id="viewerImg" src="" alt="viewer">
+  <iframe id="viewerFrame" src="" title="첨부파일 미리보기"></iframe>
+  <div id="viewerFileFallback">
+    <div class="file-name"></div>
+    <a href="#" target="_blank" rel="noopener">새 탭에서 열기</a>
+  </div>
 </div>
 
 {% endblock %}
@@ -666,16 +781,62 @@ window.addEventListener("resize", shrinkDeptIfWrapped);
 /* ===== ✅ 이미지 뷰어: 전체화면 + 스와이프 + 더블탭 줌 + 핀치 줌 + ESC + 1/3 표시 ===== */
 document.addEventListener("DOMContentLoaded", function(){
 
-  const contentArea = document.querySelector(".content-value");
-  if(!contentArea) return;
-
-  const imgs = Array.from(contentArea.querySelectorAll("img"));
-  if(imgs.length === 0) return;
-
   const viewer = document.getElementById("imageViewer");
   const viewerImg = document.getElementById("viewerImg");
+  const viewerFrame = document.getElementById("viewerFrame");
+  const viewerFileFallback = document.getElementById("viewerFileFallback");
   const viewerClose = document.getElementById("viewerClose");
   const viewerCounter = document.getElementById("viewerCounter");
+  const viewerCaption = document.getElementById("viewerCaption");
+  const viewerPrev = document.getElementById("viewerPrev");
+  const viewerNext = document.getElementById("viewerNext");
+  if(!viewer || !viewerImg || !viewerFrame || !viewerFileFallback || !viewerClose || !viewerCounter || !viewerCaption) return;
+
+  const contentArea = document.querySelector(".content-value");
+  const contentImgs = contentArea ? Array.from(contentArea.querySelectorAll("img")) : [];
+  const attachmentLinks = Array.from(document.querySelectorAll(".attachment-link"));
+
+  function isImageUrl(url){
+    try {
+      const path = new URL(url, window.location.href).pathname.toLowerCase();
+      return /\.(png|jpe?g|gif|webp|bmp|heic|heif)$/i.test(path);
+    } catch(e) {
+      return /\.(png|jpe?g|gif|webp|bmp|heic|heif)(\?|#|$)/i.test(url);
+    }
+  }
+
+  function isPdfUrl(url){
+    try {
+      const path = new URL(url, window.location.href).pathname.toLowerCase();
+      return /\.pdf$/i.test(path);
+    } catch(e) {
+      return /\.pdf(\?|#|$)/i.test(url);
+    }
+  }
+
+  const viewerItems = [];
+
+  contentImgs.forEach((img, idx)=>{
+    viewerItems.push({
+      src: img.src,
+      title: img.alt || "본문 이미지 " + (idx + 1),
+      type: "image",
+      trigger: img
+    });
+  });
+
+  attachmentLinks.forEach((link)=>{
+    const href = link.href;
+
+    viewerItems.push({
+      src: href,
+      title: link.dataset.attachmentName || link.textContent.trim() || "첨부파일",
+      type: isImageUrl(href) ? "image" : (isPdfUrl(href) ? "pdf" : "file"),
+      trigger: link
+    });
+  });
+
+  if(viewerItems.length === 0) return;
 
   let currentIndex = 0;
 
@@ -701,7 +862,13 @@ document.addEventListener("DOMContentLoaded", function(){
   }
 
   function updateCounter(){
-    viewerCounter.textContent = (currentIndex + 1) + " / " + imgs.length;
+    viewerCounter.textContent = (currentIndex + 1) + " / " + viewerItems.length;
+    viewerCaption.textContent = viewerItems[currentIndex].title || "";
+
+    const hasMultiple = viewerItems.length > 1;
+    viewerCounter.style.display = hasMultiple ? "block" : "none";
+    if(viewerPrev) viewerPrev.style.display = hasMultiple ? "block" : "none";
+    if(viewerNext) viewerNext.style.display = hasMultiple ? "block" : "none";
   }
 
   function applyTransform(){
@@ -718,7 +885,27 @@ document.addEventListener("DOMContentLoaded", function(){
 
   function showImage(idx){
     currentIndex = idx;
-    viewerImg.src = imgs[currentIndex].src;
+    const item = viewerItems[currentIndex];
+    viewerImg.style.display = "none";
+    viewerFrame.style.display = "none";
+    viewerFileFallback.style.display = "none";
+    viewerFrame.src = "about:blank";
+
+    if(item.type === "image"){
+      viewerImg.src = item.src;
+      viewerImg.alt = item.title || "viewer";
+      viewerImg.style.display = "block";
+    } else if(item.type === "pdf"){
+      viewerFrame.src = item.src;
+      viewerFrame.style.display = "block";
+    } else {
+      const nameEl = viewerFileFallback.querySelector(".file-name");
+      const linkEl = viewerFileFallback.querySelector("a");
+      if(nameEl) nameEl.textContent = item.title || "첨부파일";
+      if(linkEl) linkEl.href = item.src;
+      viewerFileFallback.style.display = "block";
+    }
+
     updateCounter();
     resetTransform();
   }
@@ -731,22 +918,29 @@ document.addEventListener("DOMContentLoaded", function(){
 
   function closeViewer(){
     viewer.style.display = "none";
+    viewerImg.src = "";
+    viewerFrame.src = "about:blank";
     lockBodyScroll(false);
   }
 
   function prev(){
-    showImage((currentIndex - 1 + imgs.length) % imgs.length);
+    showImage((currentIndex - 1 + viewerItems.length) % viewerItems.length);
   }
   function next(){
-    showImage((currentIndex + 1) % imgs.length);
+    showImage((currentIndex + 1) % viewerItems.length);
   }
 
-  imgs.forEach((img, idx)=>{
-    img.style.cursor = "zoom-in";
-    img.addEventListener("click", ()=> openViewer(idx));
+  viewerItems.forEach((item, idx)=>{
+    item.trigger.style.cursor = "zoom-in";
+    item.trigger.addEventListener("click", (e)=> {
+      e.preventDefault();
+      openViewer(idx);
+    });
   });
 
   viewerClose.addEventListener("click", closeViewer);
+  if(viewerPrev) viewerPrev.addEventListener("click", (e)=>{ e.stopPropagation(); prev(); });
+  if(viewerNext) viewerNext.addEventListener("click", (e)=>{ e.stopPropagation(); next(); });
 
   // ESC 닫기
   document.addEventListener("keydown", (e)=>{
