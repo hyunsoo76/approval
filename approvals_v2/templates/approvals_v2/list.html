@@ -141,7 +141,7 @@
             <div class="card-body">
               <div class="d-flex justify-content-between align-items-start">
                 <div class="me-2">
-                  <div class="small text-muted">#{{ a.id }}</div>
+                  <div class="small text-muted">{{ a.id }}</div>
                   <div class="fw-semibold" style="line-height:1.25;">{{ a.title }}</div>
                 </div>
 
@@ -186,7 +186,7 @@
             {% for row in approvals_ctx %}
               {% with a=row.a route=row.route %}
                 <tr onclick="location.href='/approval/v2/{{ a.id }}/'" style="cursor:pointer;">
-                  <td class="text-muted">#{{ a.id }}</td>
+                  <td class="text-muted">{{ a.id }}</td>
                   <td><strong>{{ a.title }}</strong></td>
                   <td>{{ a.department }}</td>
                   <td>{{ a.name }}</td>
