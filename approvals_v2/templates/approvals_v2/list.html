@@ -147,7 +147,9 @@
 
   .approval-title{
     color:#111827;
-    font-weight:800;
+    font-weight:700;
+    line-height:1.35;
+    letter-spacing:0;
   }
 
   /* ✅ row hover 효과 */
@@ -229,7 +231,7 @@
             <div class="card-body">
               <div class="d-flex justify-content-between align-items-start">
                 <div class="me-2">
-                  <div class="small text-muted">#{{ a.id }}</div>
+                  <div class="small text-muted">{{ a.id }}</div>
                   <div class="mobile-doc-title">{{ a.title }}</div>
                 </div>
 
@@ -262,19 +264,19 @@
         <table class="table approval-table table-hover mb-0">
           <thead>
             <tr>
-              <th style="width:90px;">ID</th>
+              <th style="width:72px;">ID</th>
               <th>제목</th>
-              <th style="width:160px;">회원사</th>
-              <th style="width:120px;">기안자</th>
-              <th style="width:130px;">기안일</th>
-              <th style="width:180px;">현재 단계</th>
+              <th style="width:140px;">회원사</th>
+              <th style="width:105px;">기안자</th>
+              <th style="width:118px;">기안일</th>
+              <th style="width:132px;">현재 단계</th>
             </tr>
           </thead>
           <tbody>
             {% for row in approvals_ctx %}
               {% with a=row.a route=row.route %}
                 <tr onclick="location.href='/approval/v2/{{ a.id }}/'" style="cursor:pointer;">
-                  <td class="text-muted">#{{ a.id }}</td>
+                  <td class="text-muted">{{ a.id }}</td>
                   <td><span class="approval-title">{{ a.title }}</span></td>
                   <td>{{ a.department }}</td>
                   <td>{{ a.name }}</td>
@@ -298,9 +300,7 @@
       </div>
     </div>
 
-    <div class="list-note mt-2">
-      최대 200건 표시(추후 페이지네이션 추가)
-    </div>
+    <div class="list-note mt-2">최근 200건 표시</div>
   </div>
 </div>
 {% endblock %}
