@@ -48,9 +48,9 @@
   /* ===== 현재 단계 배지 ===== */
   .step-badge{
     display:inline-block;
-    padding:5px 9px;
-    border-radius:999px;
-    font-size:12px;
+    padding:6px 10px;
+    border-radius:8px;
+    font-size:13px;
     font-weight:700;
     line-height:1;
     white-space:nowrap;
@@ -172,9 +172,19 @@
     font-weight:800;
     line-height:1.28;
   }
-  .list-note{
-    color:#6b7280;
-    font-size:12px;
+  .pagination-wrap{
+    display:flex;
+    justify-content:center;
+    margin-top:16px;
+  }
+  .pagination .page-link{
+    color:#374151;
+    border-color:#d8dee4;
+  }
+  .pagination .page-item.active .page-link{
+    background:#1f2937;
+    border-color:#1f2937;
+    color:#fff;
   }
 </style>
 {% endblock %}
@@ -300,7 +310,29 @@
       </div>
     </div>
 
-    <div class="list-note mt-2">최근 200건 표시</div>
+    {% if page_obj.paginator.num_pages > 1 %}
+      <nav class="pagination-wrap" aria-label="문서 페이지">
+        <ul class="pagination pagination-sm mb-0">
+          {% if page_obj.has_previous %}
+            <li class="page-item">
+              <a class="page-link" href="?status={{ status }}&q={{ q }}&page={{ page_obj.previous_page_number }}">이전</a>
+            </li>
+          {% endif %}
+
+          {% for num in page_obj.paginator.page_range %}
+            <li class="page-item {% if page_obj.number == num %}active{% endif %}">
+              <a class="page-link" href="?status={{ status }}&q={{ q }}&page={{ num }}">{{ num }}</a>
+            </li>
+          {% endfor %}
+
+          {% if page_obj.has_next %}
+            <li class="page-item">
+              <a class="page-link" href="?status={{ status }}&q={{ q }}&page={{ page_obj.next_page_number }}">다음</a>
+            </li>
+          {% endif %}
+        </ul>
+      </nav>
+    {% endif %}
   </div>
 </div>
 {% endblock %}

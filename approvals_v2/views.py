@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.core.files.storage import default_storage
+from django.core.paginator import Paginator
 from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.template.loader import render_to_string
@@ -369,7 +370,9 @@ def v2_list(request):
             Q(name__icontains=q)
         )
 
-    approvals = qs[:200]
+    paginator = Paginator(qs, 10)
+    page_obj = paginator.get_page(request.GET.get("page"))
+    approvals = page_obj.object_list
 
     role_label = {
         "drafter": "담당",
@@ -410,7 +413,7 @@ def v2_list(request):
     return render(
         request,
         "approvals_v2/list.html",
-        {"approvals_ctx": approvals_ctx, "status": status, "q": q},
+        {"approvals_ctx": approvals_ctx, "status": status, "q": q, "page_obj": page_obj},
     )
 
 
