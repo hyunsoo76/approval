@@ -810,7 +810,7 @@ def mobile_upload_page(request, token: str):
 
 
 def mobile_upload_poll(request, token: str):
-    data = MOBILE_UPLOAD_STORE.get(token) or {}
+    data = MOBILE_UPLOAD_STORE.pop(token, None) or {}
     return JsonResponse({"image_url": data.get("image_url", "")})
 
 
