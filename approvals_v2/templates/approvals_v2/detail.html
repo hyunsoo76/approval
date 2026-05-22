@@ -8,10 +8,15 @@
 <style>
   body { font-family: -apple-system, BlinkMacSystemFont, "맑은 고딕", sans-serif; margin: 20px; }
   .paper { width: 100%; max-width: 900px; border: 1px solid #000; padding: 20px; box-sizing: border-box; margin: 0 auto; background: #fff; }
+  .brand-home-wrap{
+    width:100%;
+    max-width:900px;
+    margin:0 auto 14px auto;
+  }
   .brand-home{
     width:fit-content;
     max-width:100%;
-    margin:0 auto 14px auto;
+    margin:0;
     display:inline-flex;
     align-items:center;
     gap:12px;
@@ -205,7 +210,8 @@
   @media (max-width:600px){
     body { margin:10px; font-size:13px; }
     .paper { padding:10px; }
-    .brand-home{ margin-bottom:10px; gap:10px; }
+    .brand-home-wrap{ margin-bottom:10px; }
+    .brand-home{ gap:10px; }
     .brand-home .brand-stamp-logo{ height:42px; }
     .brand-home .brand-title{ font-size:18px; }
     .brand-home .brand-subtitle{ font-size:13px; }
@@ -568,13 +574,15 @@
   </div>
 </div>
 
-<a class="brand-home" href="/approval/v2/" aria-label="전자결재 홈">
-  <img src="{% static 'img/saecheon_stamp.png' %}" alt="새천년인" class="brand-stamp-logo">
-  <div class="system-wrap">
-    <div class="brand-title">내쇼날새천년</div>
-    <div class="brand-subtitle">전자결재</div>
-  </div>
-</a>
+<div class="brand-home-wrap">
+  <a class="brand-home" href="/approval/v2/" aria-label="전자결재 홈">
+    <img src="{% static 'img/saecheon_stamp.png' %}" alt="새천년인" class="brand-stamp-logo">
+    <div class="system-wrap">
+      <div class="brand-title">내쇼날새천년</div>
+      <div class="brand-subtitle">전자결재</div>
+    </div>
+  </a>
+</div>
 
 <div class="paper">
   <div class="header-wrapper">
