@@ -143,6 +143,7 @@
   #contentEditor img{
     max-width: 100%;
     height: auto;
+    cursor: pointer;
   }
 
   #contentEditor img.img-selected{
@@ -160,6 +161,7 @@
     cursor: nwse-resize;
     box-shadow: 0 1px 4px rgba(0,0,0,.2);
     z-index: 9999;
+    touch-action: none;
   }
 
   .img-size-toolbar{
@@ -182,6 +184,36 @@
     font-size: 12px;
     cursor: pointer;
   }
+  .editor-toolbar{
+    display:flex;
+    align-items:center;
+    gap:6px;
+    flex-wrap:wrap;
+    padding:6px;
+    margin-bottom:6px;
+    border:1px solid #d8dee4;
+    border-radius:8px;
+    background:#f6f8fa;
+  }
+  .editor-toolbar button,
+  .editor-toolbar select,
+  .editor-toolbar input[type="color"]{
+    height:30px;
+    border:1px solid #c9d1d9;
+    border-radius:6px;
+    background:#fff;
+    color:#222;
+    font-size:12px;
+  }
+  .editor-toolbar button{
+    min-width:32px;
+    padding:0 8px;
+    cursor:pointer;
+    font-weight:700;
+  }
+  .editor-toolbar input[type="color"]{width:36px;padding:2px;}
+  .editor-toolbar .toolbar-divider{width:1px;height:22px;background:#d0d7de;margin:0 2px;}
+  .editor-help{font-size:12px;color:#57606a;margin:0 0 6px 0;}
 
   .existing-attach-box{
     margin-top:8px;
@@ -295,6 +327,27 @@
       <tr>
         <th style="width:70px;">내용</th>
         <td>
+          <div class="editor-toolbar" id="editorToolbar" aria-label="내용 서식 도구">
+            <select id="fontSizeSelect" title="글자 크기">
+              <option value="">크기</option>
+              <option value="12px">12</option>
+              <option value="14px">14</option>
+              <option value="16px">16</option>
+              <option value="18px">18</option>
+              <option value="22px">22</option>
+              <option value="28px">28</option>
+            </select>
+            <input type="color" id="fontColorInput" value="#111111" title="글자 색상">
+            <button type="button" data-editor-cmd="bold" title="굵게">B</button>
+            <button type="button" data-editor-cmd="underline" title="밑줄">U</button>
+            <span class="toolbar-divider"></span>
+            <button type="button" data-editor-cmd="justifyLeft" title="왼쪽 정렬">좌</button>
+            <button type="button" data-editor-cmd="justifyCenter" title="가운데 정렬">중</button>
+            <button type="button" data-editor-cmd="justifyRight" title="오른쪽 정렬">우</button>
+            <span class="toolbar-divider"></span>
+            <button type="button" id="insertTableBtn" title="표 삽입">표</button>
+          </div>
+          <div class="editor-help">이미지는 클릭하면 파란 테두리와 크기 조절 핸들이 표시됩니다.</div>
           <div id="contentEditor"
                contenteditable="true"
                style="min-height:100%; padding:8px; outline:none; white-space:pre-wrap; word-break:break-word;"></div>
@@ -657,11 +710,101 @@
           } else {
             editor.appendChild(img);
           }
+          setTimeout(() => img.click(), 0);
           return;
         }
       }
     });
   }
+
+  (function(){
+    const editor = document.getElementById("contentEditor");
+    const toolbar = document.getElementById("editorToolbar");
+    if (!editor || !toolbar) return;
+    let savedRange = null;
+
+    function saveSelection(){
+      const sel = window.getSelection();
+      if (!sel || !sel.rangeCount) return;
+      const range = sel.getRangeAt(0);
+      if (editor.contains(range.commonAncestorContainer)) savedRange = range.cloneRange();
+    }
+
+    function focusEditor(){
+      editor.focus({ preventScroll:true });
+      if (savedRange) {
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(savedRange);
+      }
+    }
+
+    function applyInlineStyle(styleName, value){
+      focusEditor();
+      const sel = window.getSelection();
+      if (!sel || !sel.rangeCount || sel.isCollapsed) return;
+      const range = sel.getRangeAt(0);
+      if (!editor.contains(range.commonAncestorContainer)) return;
+
+      const span = document.createElement("span");
+      span.style[styleName] = value;
+      try {
+        range.surroundContents(span);
+      } catch (e) {
+        span.appendChild(range.extractContents());
+        range.insertNode(span);
+      }
+      sel.removeAllRanges();
+      const newRange = document.createRange();
+      newRange.selectNodeContents(span);
+      sel.addRange(newRange);
+      saveSelection();
+    }
+
+    editor.addEventListener("keyup", saveSelection);
+    editor.addEventListener("mouseup", saveSelection);
+    toolbar.addEventListener("mousedown", (e) => {
+      if (e.target.closest("button")) e.preventDefault();
+    });
+
+    toolbar.addEventListener("click", (e) => {
+      const btn = e.target.closest("button");
+      if (!btn) return;
+      e.preventDefault();
+
+      const cmd = btn.dataset.editorCmd;
+      if (cmd) {
+        focusEditor();
+        document.execCommand(cmd, false, null);
+        return;
+      }
+
+      if (btn.id === "insertTableBtn") {
+        focusEditor();
+        document.execCommand(
+          "insertHTML",
+          false,
+          '<table style="width:100%;border-collapse:collapse;margin:6px 0;"><tbody><tr><td style="border:1px solid #999;padding:6px;">&nbsp;</td><td style="border:1px solid #999;padding:6px;">&nbsp;</td></tr><tr><td style="border:1px solid #999;padding:6px;">&nbsp;</td><td style="border:1px solid #999;padding:6px;">&nbsp;</td></tr></tbody></table><div><br></div>'
+        );
+      }
+    });
+
+    const fontSizeSelect = document.getElementById("fontSizeSelect");
+    const fontColorInput = document.getElementById("fontColorInput");
+
+    if (fontSizeSelect) {
+      fontSizeSelect.addEventListener("change", () => {
+        if (fontSizeSelect.value) applyInlineStyle("fontSize", fontSizeSelect.value);
+        fontSizeSelect.value = "";
+      });
+    }
+
+    if (fontColorInput) {
+      fontColorInput.addEventListener("input", () => {
+        applyInlineStyle("color", fontColorInput.value);
+      });
+    }
+  })();
 
   const attachmentsInput = document.getElementById("attachmentsInput");
   const addFilesBtn = document.getElementById("addFilesBtn");
@@ -751,6 +894,7 @@
           img.style.display = "block";
           img.style.margin = "6px 0";
           editor.appendChild(img);
+          setTimeout(() => img.click(), 0);
         })
         .catch(() => {});
     }, 3000);
@@ -767,6 +911,25 @@
     let dragging = false;
     let startX = 0;
     let startW = 0;
+    let draggedImg = null;
+
+    function prepareImage(img){
+      if (!img || img.dataset.editorImageReady === "1") return;
+      img.dataset.editorImageReady = "1";
+      img.draggable = true;
+      img.title = "클릭 후 모서리를 끌어 크기 조절, 드래그로 위치 이동";
+      img.addEventListener("dragstart", (e) => {
+        draggedImg = img;
+        e.dataTransfer.effectAllowed = "move";
+        e.dataTransfer.setData("text/plain", "move-image");
+      });
+    }
+
+    function prepareImages(){
+      editor.querySelectorAll("img").forEach(prepareImage);
+    }
+
+    prepareImages();
 
     function removeUI(){
       if (handleEl) { handleEl.remove(); handleEl = null; }
@@ -776,6 +939,7 @@
     }
 
     function placeHandleAndToolbar(img){
+      prepareImage(img);
       handleEl = document.createElement('div');
       handleEl.className = 'img-resize-handle';
       document.body.appendChild(handleEl);
@@ -786,6 +950,8 @@
         <button type="button" data-pct="50">50%</button>
         <button type="button" data-pct="75">75%</button>
         <button type="button" data-pct="100">100%</button>
+        <button type="button" data-img-move="up">위로</button>
+        <button type="button" data-img-move="down">아래로</button>
       `;
       document.body.appendChild(toolbarEl);
 
@@ -809,25 +975,43 @@
 
       toolbarEl.addEventListener('click', (e) => {
         const btn = e.target.closest('button[data-pct]');
-        if (!btn) return;
-        const pct = parseInt(btn.dataset.pct, 10);
-        img.style.width = pct + '%';
-        img.style.height = 'auto';
+        if (btn) {
+          const pct = parseInt(btn.dataset.pct, 10);
+          img.style.width = pct + '%';
+          img.style.height = 'auto';
+          reposition();
+          return;
+        }
+
+        const moveBtn = e.target.closest('button[data-img-move]');
+        if (!moveBtn) return;
+        const block = img.closest("div,p") || img;
+        if (moveBtn.dataset.imgMove === "up" && block.previousSibling) {
+          editor.insertBefore(block, block.previousSibling);
+        }
+        if (moveBtn.dataset.imgMove === "down" && block.nextSibling) {
+          editor.insertBefore(block.nextSibling, block);
+        }
         reposition();
       });
 
       function startDrag(ev){
         ev.preventDefault();
         dragging = true;
-        startX = ev.clientX;
+        const point = ev.touches ? ev.touches[0] : ev;
+        startX = point.clientX;
         startW = img.getBoundingClientRect().width;
         document.addEventListener('mousemove', onMove);
         document.addEventListener('mouseup', endDrag);
+        document.addEventListener('touchmove', onMove, { passive:false });
+        document.addEventListener('touchend', endDrag);
       }
 
       function onMove(ev){
         if (!dragging) return;
-        const dx = ev.clientX - startX;
+        ev.preventDefault();
+        const point = ev.touches ? ev.touches[0] : ev;
+        const dx = point.clientX - startX;
         const newW = Math.max(60, startW + dx);
         img.style.width = newW + 'px';
         img.style.height = 'auto';
@@ -838,9 +1022,12 @@
         dragging = false;
         document.removeEventListener('mousemove', onMove);
         document.removeEventListener('mouseup', endDrag);
+        document.removeEventListener('touchmove', onMove);
+        document.removeEventListener('touchend', endDrag);
       }
 
       handleEl.addEventListener('mousedown', startDrag);
+      handleEl.addEventListener('touchstart', startDrag, { passive:false });
     }
 
     editor.addEventListener('click', (e) => {
@@ -853,12 +1040,46 @@
       placeHandleAndToolbar(selectedImg);
     });
 
+    editor.addEventListener("dragover", (e) => {
+      if (!draggedImg) return;
+      e.preventDefault();
+    });
+
+    editor.addEventListener("drop", (e) => {
+      if (!draggedImg) return;
+      e.preventDefault();
+      let range = document.caretRangeFromPoint
+        ? document.caretRangeFromPoint(e.clientX, e.clientY)
+        : null;
+      if (!range && document.caretPositionFromPoint) {
+        const pos = document.caretPositionFromPoint(e.clientX, e.clientY);
+        if (pos) {
+          range = document.createRange();
+          range.setStart(pos.offsetNode, pos.offset);
+          range.collapse(true);
+        }
+      }
+      if (range && editor.contains(range.commonAncestorContainer)) {
+        range.insertNode(draggedImg);
+      } else {
+        editor.appendChild(draggedImg);
+      }
+      const movedImg = draggedImg;
+      draggedImg = null;
+      removeUI();
+      selectedImg = movedImg;
+      selectedImg.classList.add('img-selected');
+      placeHandleAndToolbar(selectedImg);
+    });
+
     document.addEventListener('click', (e) => {
       if (!selectedImg) return;
       const inEditor = editor.contains(e.target);
       const inUI = (handleEl && handleEl.contains(e.target)) || (toolbarEl && toolbarEl.contains(e.target));
       if (!inEditor && !inUI) removeUI();
     });
+
+    new MutationObserver(prepareImages).observe(editor, { childList:true, subtree:true });
   })();
 
   (function(){
