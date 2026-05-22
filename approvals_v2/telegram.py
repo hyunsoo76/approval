@@ -13,11 +13,6 @@ def _send_message(*, chat_id: str, text: str) -> bool:
     텔레그램 sendMessage 호출.
     실패해도 예외로 서비스가 죽지 않게 하고 False 반환.
     """
-    # TEST ONLY: Disable real Telegram delivery during approval testing.
-    # Revert by removing this return after testing is finished.
-    print(f"🧪 [TG DISABLED] to={chat_id} text={text}")
-    return False
-
     token = _env("TELEGRAM_BOT_TOKEN")
     if not token:
         print("⚠️ [TG] missing TELEGRAM_BOT_TOKEN")
