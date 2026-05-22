@@ -169,6 +169,7 @@
   .payment-table .bank-col{width:110px;}
   .payment-table .amount-col{width:130px;}
   .payment-table td.no-col{text-align:center;color:#444;font-weight:700;}
+  .payment-table .account-number{word-break:normal;overflow-wrap:normal;}
 
   .hint { font-size:13px; color:#444; margin-top:10px; }
 
@@ -229,11 +230,33 @@
       padding:6px;
       font-size:13px;
     }
-    .payment-table{table-layout:auto;}
-    .payment-table th,.payment-table td{padding:4px;font-size:12px;}
-    .payment-table .no-col{width:32px;}
-    .payment-table .bank-col{width:72px;}
-    .payment-table .amount-col{width:96px;}
+    .payment-table{display:block;border-collapse:separate;border-spacing:0;}
+    .payment-table thead{display:none;}
+    .payment-table tbody{display:block;}
+    .payment-table tr{
+      display:grid;
+      grid-template-columns:42px minmax(58px,72px) 1fr;
+      gap:8px 10px;
+      border:1px solid #000;
+      padding:8px;
+      margin-bottom:8px;
+    }
+    .payment-table td{display:block;border:0;padding:0;font-size:12px;word-break:break-word;}
+    .payment-table td::before{
+      content:attr(data-label);
+      display:block;
+      margin-bottom:3px;
+      font-size:11px;
+      font-weight:700;
+      color:#555;
+    }
+    .payment-table td.no-col{grid-row:1 / span 2;align-self:center;font-size:14px;}
+    .payment-table td.no-col::before{content:"NO";font-size:10px;}
+    .payment-table td[data-field="bank"]{grid-column:2;}
+    .payment-table td[data-field="account_number"]{grid-column:3;word-break:normal;overflow-wrap:normal;}
+    .payment-table td[data-field="account_name"]{grid-column:1 / span 2;}
+    .payment-table td[data-field="amount"]{grid-column:3;font-weight:700;}
+    .payment-table td[data-field="note"]{grid-column:1 / span 3;}
   }
 
   /* ===== 첨부 ===== */
@@ -648,12 +671,12 @@
       <tbody>
         {% for row in approval.payment_accounts %}
           <tr>
-            <td class="no-col">{{ forloop.counter }}</td>
-            <td>{{ row.bank }}</td>
-            <td>{{ row.account_number }}</td>
-            <td>{{ row.account_name }}</td>
-            <td>{{ row.amount }}</td>
-            <td>{{ row.note }}</td>
+            <td class="no-col" data-label="NO">{{ forloop.counter }}</td>
+            <td data-label="은행명" data-field="bank">{{ row.bank }}</td>
+            <td class="account-number" data-label="계좌번호" data-field="account_number">{{ row.account_number }}</td>
+            <td data-label="계좌명" data-field="account_name">{{ row.account_name }}</td>
+            <td data-label="금액" data-field="amount">{{ row.amount }}</td>
+            <td data-label="비고" data-field="note">{{ row.note }}</td>
           </tr>
         {% endfor %}
       </tbody>

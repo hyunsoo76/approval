@@ -65,7 +65,7 @@ def parse_payment_accounts(request):
             "bank": (banks[idx] if idx < len(banks) else "").strip(),
             "account_number": (account_numbers[idx] if idx < len(account_numbers) else "").strip(),
             "account_name": (account_names[idx] if idx < len(account_names) else "").strip(),
-            "amount": (amounts[idx] if idx < len(amounts) else "").strip(),
+            "amount": format_payment_amount(amounts[idx] if idx < len(amounts) else ""),
             "note": (notes[idx] if idx < len(notes) else "").strip(),
         }
 
@@ -73,6 +73,17 @@ def parse_payment_accounts(request):
             rows.append(row)
 
     return rows
+
+
+def format_payment_amount(value):
+    digits = "".join(ch for ch in str(value or "") if ch.isdigit())
+    if not digits:
+        return ""
+    parts = []
+    while digits:
+        parts.append(digits[-3:])
+        digits = digits[:-3]
+    return ",".join(reversed(parts))
 
 
 def role_kr(role: str) -> str:

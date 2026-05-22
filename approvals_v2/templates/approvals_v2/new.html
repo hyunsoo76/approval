@@ -72,6 +72,7 @@
   .payment-table .amount-col{width:130px;}
   .payment-table input{width:100%;box-sizing:border-box;border:none;outline:none;background:transparent;font-size:13px;}
   .payment-table .payment-no{text-align:center;color:#444;font-weight:700;}
+  .payment-table input[name="payment_account_number[]"]{white-space:nowrap;}
 
   input[type="text"], select, textarea{
     width:100%; box-sizing:border-box;
@@ -102,12 +103,35 @@
     .sign-box-inner{font-size:11px;}
     .info-table th,.subject-table th,.content-table th{width:70px;}
     .content-table td{height:280px;}
-    .payment-table{table-layout:auto;}
-    .payment-table th,.payment-table td{padding:4px;font-size:12px;}
-    .payment-table .no-col{width:32px;}
-    .payment-table .bank-col{width:72px;}
-    .payment-table .amount-col{width:96px;}
-    .payment-table input{font-size:12px;}
+    .payment-table{display:block;border-collapse:separate;border-spacing:0;}
+    .payment-table thead{display:none;}
+    .payment-table tbody{display:block;}
+    .payment-table tr{
+      display:grid;
+      grid-template-columns:42px minmax(58px,72px) 1fr;
+      gap:8px 10px;
+      border:1px solid #000;
+      padding:8px;
+      margin-bottom:8px;
+    }
+    .payment-table td{display:block;border:0;padding:0;font-size:12px;}
+    .payment-table td::before{
+      content:attr(data-label);
+      display:block;
+      margin-bottom:3px;
+      font-size:11px;
+      font-weight:700;
+      color:#555;
+    }
+    .payment-table .payment-no{grid-row:1 / span 2;align-self:center;font-size:14px;}
+    .payment-table .payment-no::before{content:"NO";font-size:10px;}
+    .payment-table td[data-field="bank"]{grid-column:2;}
+    .payment-table td[data-field="account_number"]{grid-column:3;}
+    .payment-table td[data-field="account_name"]{grid-column:1 / span 2;}
+    .payment-table td[data-field="amount"]{grid-column:3;}
+    .payment-table td[data-field="note"]{grid-column:1 / span 3;}
+    .payment-table input{font-size:13px;border-bottom:1px solid #ddd;padding:3px 0;}
+    .payment-table input[name="payment_account_number[]"]{white-space:nowrap;overflow-x:auto;}
   }
 
   #contentEditor img{
@@ -407,12 +431,12 @@
 
     const tr = document.createElement("tr");
     tr.innerHTML = `
-      <td class="payment-no"></td>
-      <td><input type="text" name="payment_bank[]" value="" autocomplete="off"></td>
-      <td><input type="text" name="payment_account_number[]" value="" autocomplete="off"></td>
-      <td><input type="text" name="payment_account_name[]" value="" autocomplete="off"></td>
-      <td><input type="text" name="payment_amount[]" value="" inputmode="numeric" autocomplete="off"></td>
-      <td><input type="text" name="payment_note[]" value="" autocomplete="off"></td>
+      <td class="payment-no" data-label="NO"></td>
+      <td data-label="은행명" data-field="bank"><input type="text" name="payment_bank[]" value="" autocomplete="off"></td>
+      <td data-label="계좌번호" data-field="account_number"><input type="text" name="payment_account_number[]" value="" autocomplete="off"></td>
+      <td data-label="계좌명" data-field="account_name"><input type="text" name="payment_account_name[]" value="" autocomplete="off"></td>
+      <td data-label="금액" data-field="amount"><input type="text" name="payment_amount[]" value="" inputmode="numeric" autocomplete="off"></td>
+      <td data-label="비고" data-field="note"><input type="text" name="payment_note[]" value="" autocomplete="off"></td>
     `;
 
     paymentRows.appendChild(tr);
@@ -421,11 +445,14 @@
     inputs[0].value = rowData?.bank || "";
     inputs[1].value = rowData?.account_number || "";
     inputs[2].value = rowData?.account_name || "";
-    inputs[3].value = rowData?.amount || "";
+    inputs[3].value = formatPaymentAmount(rowData?.amount || "");
     inputs[4].value = rowData?.note || "";
 
     inputs.forEach(input => {
-      input.addEventListener("input", syncPaymentRows);
+      input.addEventListener("input", () => {
+        if (input.name === "payment_amount[]") formatPaymentAmountInput(input);
+        syncPaymentRows();
+      });
     });
 
     syncPaymentRowNumbers();
@@ -440,10 +467,21 @@
         bank: inputs[0]?.value || "",
         account_number: inputs[1]?.value || "",
         account_name: inputs[2]?.value || "",
-        amount: inputs[3]?.value || "",
+        amount: formatPaymentAmount(inputs[3]?.value || ""),
         note: inputs[4]?.value || "",
       };
     });
+  }
+
+  function formatPaymentAmount(value){
+    const raw = String(value || "").replace(/[^\d]/g, "");
+    if (!raw) return "";
+    return raw.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  }
+
+  function formatPaymentAmountInput(input){
+    const formatted = formatPaymentAmount(input.value);
+    if (input.value !== formatted) input.value = formatted;
   }
 
   function syncPaymentRowNumbers(){
@@ -853,30 +891,19 @@
       if (!rows.length) return `<div class="value" style="color:#999;">결제 계좌 정보 없음</div>`;
 
       return `
-        <table class="payment-preview">
-          <thead>
-            <tr>
-              <th>NO</th>
-              <th>은행명</th>
-              <th>계좌번호</th>
-              <th>계좌명</th>
-              <th>금액</th>
-              <th>비고</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${rows.map((row, idx) => `
-              <tr>
-                <td>${idx + 1}</td>
-                <td>${escapeHtml(row.bank)}</td>
-                <td>${escapeHtml(row.account_number)}</td>
-                <td>${escapeHtml(row.account_name)}</td>
-                <td>${escapeHtml(row.amount)}</td>
-                <td>${escapeHtml(row.note)}</td>
-              </tr>
-            `).join("")}
-          </tbody>
-        </table>
+        <div class="payment-preview-list">
+          ${rows.map((row, idx) => `
+            <div class="payment-preview-card">
+              <div class="payment-preview-head">
+                <strong>${idx + 1}. ${escapeHtml(row.bank)}</strong>
+                <span>${escapeHtml(row.amount)}</span>
+              </div>
+              <div class="payment-preview-row"><span>계좌번호</span><b>${escapeHtml(row.account_number)}</b></div>
+              <div class="payment-preview-row"><span>계좌명</span><b>${escapeHtml(row.account_name)}</b></div>
+              <div class="payment-preview-row"><span>비고</span><b>${escapeHtml(row.note)}</b></div>
+            </div>
+          `).join("")}
+        </div>
       `;
     }
 
@@ -980,22 +1007,14 @@
     font-size:13px;
     line-height:1.6;
   }
-  .payment-preview{
-    width:100%;
-    border-collapse:collapse;
-    table-layout:auto;
-    font-size:11px;
-  }
-  .payment-preview th,
-  .payment-preview td{
-    border:1px solid #ddd;
-    padding:4px;
-    word-break:break-word;
-  }
-  .payment-preview th{
-    background:#fafafa;
-    font-weight:800;
-  }
+  .payment-preview-list{display:flex;flex-direction:column;gap:8px;}
+  .payment-preview-card{border:1px solid #ddd;border-radius:8px;padding:10px;background:#fff;}
+  .payment-preview-head{display:flex;justify-content:space-between;gap:8px;margin-bottom:8px;font-size:13px;}
+  .payment-preview-head span{white-space:nowrap;font-weight:800;}
+  .payment-preview-row{display:grid;grid-template-columns:62px 1fr;gap:8px;font-size:12px;line-height:1.45;}
+  .payment-preview-row span{color:#666;font-weight:700;}
+  .payment-preview-row b{font-weight:600;word-break:break-word;}
+  .payment-preview-row:first-of-type b{word-break:normal;overflow-wrap:normal;}
   .footer{
     padding:12px 16px;
     background:#fafafa;
