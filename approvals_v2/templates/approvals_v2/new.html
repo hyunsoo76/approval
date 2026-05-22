@@ -108,29 +108,57 @@
     .payment-table tbody{display:block;}
     .payment-table tr{
       display:grid;
-      grid-template-columns:42px minmax(58px,72px) 1fr;
-      gap:8px 10px;
-      border:1px solid #000;
-      padding:8px;
-      margin-bottom:8px;
+      grid-template-columns:32px 54px minmax(120px,1.5fr) minmax(58px,.8fr);
+      gap:0;
+      border:1px solid #d0d7de;
+      border-radius:8px;
+      padding:0;
+      margin-bottom:10px;
+      overflow:hidden;
+      background:#fff;
+      box-shadow:0 1px 4px rgba(0,0,0,.06);
     }
-    .payment-table td{display:block;border:0;padding:0;font-size:12px;}
+    .payment-table td{
+      display:block;
+      border:0;
+      padding:7px 8px;
+      font-size:12px;
+      min-width:0;
+      border-left:1px solid #edf0f2;
+    }
+    .payment-table td:first-child,
+    .payment-table td[data-field="amount"]{border-left:0;}
     .payment-table td::before{
       content:attr(data-label);
       display:block;
-      margin-bottom:3px;
+      margin-bottom:4px;
       font-size:11px;
       font-weight:700;
-      color:#555;
+      color:#57606a;
+      line-height:1;
     }
-    .payment-table .payment-no{grid-row:1 / span 2;align-self:center;font-size:14px;}
+    .payment-table .payment-no{
+      grid-column:1;
+      grid-row:1;
+      align-self:stretch;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      padding:6px 4px;
+      background:#f6f8fa;
+      color:#24292f;
+      font-size:14px;
+      font-weight:800;
+    }
     .payment-table .payment-no::before{content:"NO";font-size:10px;}
-    .payment-table td[data-field="bank"]{grid-column:2;}
-    .payment-table td[data-field="account_number"]{grid-column:3;}
-    .payment-table td[data-field="account_name"]{grid-column:1 / span 2;}
-    .payment-table td[data-field="amount"]{grid-column:3;}
-    .payment-table td[data-field="note"]{grid-column:1 / span 3;}
-    .payment-table input{font-size:13px;border-bottom:1px solid #ddd;padding:3px 0;}
+    .payment-table td[data-field="bank"]{grid-column:2;grid-row:1;}
+    .payment-table td[data-field="account_number"]{grid-column:3;grid-row:1;}
+    .payment-table td[data-field="account_name"]{grid-column:4;grid-row:1;}
+    .payment-table td[data-field="amount"]{grid-column:1 / span 2;grid-row:2;border-top:1px solid #d8dee4;background:#fbfbfc;}
+    .payment-table td[data-field="note"]{grid-column:3 / span 2;grid-row:2;border-top:1px solid #d8dee4;background:#fbfbfc;}
+    .payment-table input{font-size:13px;border:0;padding:2px 0;color:#111;font-weight:600;}
+    .payment-table td[data-field="amount"] input{font-weight:800;color:#0969da;}
     .payment-table input[name="payment_account_number[]"]{white-space:nowrap;overflow-x:auto;}
   }
 
@@ -618,6 +646,7 @@
 
   if (form && editor && hidden) {
     form.addEventListener("submit", () => {
+      document.querySelectorAll('input[name="payment_amount[]"]').forEach(formatPaymentAmountInput);
       hidden.value = editor.innerHTML.trim();
     });
 
@@ -894,13 +923,12 @@
         <div class="payment-preview-list">
           ${rows.map((row, idx) => `
             <div class="payment-preview-card">
-              <div class="payment-preview-head">
-                <strong>${idx + 1}. ${escapeHtml(row.bank)}</strong>
-                <span>${escapeHtml(row.amount)}</span>
-              </div>
-              <div class="payment-preview-row"><span>계좌번호</span><b>${escapeHtml(row.account_number)}</b></div>
-              <div class="payment-preview-row"><span>계좌명</span><b>${escapeHtml(row.account_name)}</b></div>
-              <div class="payment-preview-row"><span>비고</span><b>${escapeHtml(row.note)}</b></div>
+              <div class="payment-preview-cell payment-preview-no"><span>NO</span><b>${idx + 1}</b></div>
+              <div class="payment-preview-cell"><span>은행명</span><b>${escapeHtml(row.bank)}</b></div>
+              <div class="payment-preview-cell payment-preview-account"><span>계좌번호</span><b>${escapeHtml(row.account_number)}</b></div>
+              <div class="payment-preview-cell"><span>계좌명</span><b>${escapeHtml(row.account_name)}</b></div>
+              <div class="payment-preview-cell payment-preview-amount"><span>금액</span><b>${escapeHtml(row.amount)}</b></div>
+              <div class="payment-preview-cell payment-preview-note"><span>비고</span><b>${escapeHtml(row.note)}</b></div>
             </div>
           `).join("")}
         </div>
@@ -1008,13 +1036,24 @@
     line-height:1.6;
   }
   .payment-preview-list{display:flex;flex-direction:column;gap:8px;}
-  .payment-preview-card{border:1px solid #ddd;border-radius:8px;padding:10px;background:#fff;}
-  .payment-preview-head{display:flex;justify-content:space-between;gap:8px;margin-bottom:8px;font-size:13px;}
-  .payment-preview-head span{white-space:nowrap;font-weight:800;}
-  .payment-preview-row{display:grid;grid-template-columns:62px 1fr;gap:8px;font-size:12px;line-height:1.45;}
-  .payment-preview-row span{color:#666;font-weight:700;}
-  .payment-preview-row b{font-weight:600;word-break:break-word;}
-  .payment-preview-row:first-of-type b{word-break:normal;overflow-wrap:normal;}
+  .payment-preview-card{
+    display:grid;
+    grid-template-columns:32px 54px minmax(120px,1.5fr) minmax(58px,.8fr);
+    border:1px solid #d0d7de;
+    border-radius:8px;
+    overflow:hidden;
+    background:#fff;
+    box-shadow:0 1px 4px rgba(0,0,0,.06);
+  }
+  .payment-preview-cell{padding:7px 8px;border-left:1px solid #edf0f2;min-width:0;}
+  .payment-preview-cell span{display:block;margin-bottom:4px;font-size:11px;color:#57606a;font-weight:700;line-height:1;}
+  .payment-preview-cell b{display:block;font-size:12px;color:#111;font-weight:700;word-break:break-word;}
+  .payment-preview-no{border-left:0;background:#f6f8fa;text-align:center;}
+  .payment-preview-no b{font-size:14px;font-weight:800;}
+  .payment-preview-account b{word-break:normal;overflow-wrap:normal;white-space:nowrap;overflow-x:auto;}
+  .payment-preview-amount{grid-column:1 / span 2;border-left:0;border-top:1px solid #d8dee4;background:#fbfbfc;}
+  .payment-preview-amount b{color:#0969da;font-weight:800;}
+  .payment-preview-note{grid-column:3 / span 2;border-top:1px solid #d8dee4;background:#fbfbfc;}
   .footer{
     padding:12px 16px;
     background:#fafafa;

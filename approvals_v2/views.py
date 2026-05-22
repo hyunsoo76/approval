@@ -86,6 +86,21 @@ def format_payment_amount(value):
     return ",".join(reversed(parts))
 
 
+def normalize_payment_accounts(rows):
+    normalized = []
+    for row in rows or []:
+        normalized.append(
+            {
+                "bank": (row.get("bank") or "").strip(),
+                "account_number": (row.get("account_number") or "").strip(),
+                "account_name": (row.get("account_name") or "").strip(),
+                "amount": format_payment_amount(row.get("amount") or ""),
+                "note": (row.get("note") or "").strip(),
+            }
+        )
+    return normalized
+
+
 def role_kr(role: str) -> str:
     return ROLE_KR.get(role or "", role or "")
 
@@ -477,6 +492,7 @@ def v2_new(request):
 # =========================
 def v2_detail(request, pk: int):
     a = get_object_or_404(ApprovalRequest, pk=pk)
+    a.payment_accounts = normalize_payment_accounts(a.payment_accounts)
     route = a.route_v2
     steps = route.steps.order_by("order")
     actor_role = get_current_actor_role(route)
@@ -523,7 +539,7 @@ def v2_edit(request, pk: int):
                     "title": approval.title,
                     "content": approval.content,
                 },
-                "payment_accounts": approval.payment_accounts or [],
+                "payment_accounts": normalize_payment_accounts(approval.payment_accounts),
                 "existing_attachments": approval.v2_attachments.all().order_by("id"),
             }
         )
@@ -819,6 +835,7 @@ def approval_pdf(request, pk):
         approval = ApprovalRequest.objects.select_related("route_v2").get(pk=pk)
     except ApprovalRequest.DoesNotExist:
         raise Http404()
+    approval.payment_accounts = normalize_payment_accounts(approval.payment_accounts)
 
     route = getattr(approval, "route_v2", None)
     steps = route.steps.all().order_by("order") if route else []
