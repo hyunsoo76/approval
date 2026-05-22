@@ -949,6 +949,39 @@
       editor.querySelectorAll("img").forEach(prepareImage);
     }
 
+    function previousElementInEditor(node){
+      let prev = node.previousSibling;
+      while (prev && prev.nodeType === Node.TEXT_NODE && !prev.textContent.trim()) {
+        prev = prev.previousSibling;
+      }
+      return prev;
+    }
+
+    function nextElementInEditor(node){
+      let next = node.nextSibling;
+      while (next && next.nodeType === Node.TEXT_NODE && !next.textContent.trim()) {
+        next = next.nextSibling;
+      }
+      return next;
+    }
+
+    function moveImage(img, direction){
+      if (!img || img.parentNode !== editor) {
+        editor.appendChild(img);
+      }
+
+      if (direction === "up") {
+        const prev = previousElementInEditor(img);
+        if (prev) editor.insertBefore(img, prev);
+        return;
+      }
+
+      const next = nextElementInEditor(img);
+      if (next) {
+        editor.insertBefore(img, next.nextSibling);
+      }
+    }
+
     prepareImages();
 
     function removeUI(){
@@ -1005,13 +1038,7 @@
 
         const moveBtn = e.target.closest('button[data-img-move]');
         if (!moveBtn) return;
-        const block = img.closest("div,p") || img;
-        if (moveBtn.dataset.imgMove === "up" && block.previousSibling) {
-          editor.insertBefore(block, block.previousSibling);
-        }
-        if (moveBtn.dataset.imgMove === "down" && block.nextSibling) {
-          editor.insertBefore(block.nextSibling, block);
-        }
+        moveImage(img, moveBtn.dataset.imgMove);
         reposition();
       });
 
