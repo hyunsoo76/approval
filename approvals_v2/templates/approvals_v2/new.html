@@ -213,7 +213,6 @@
   }
   .editor-toolbar input[type="color"]{width:36px;padding:2px;}
   .editor-toolbar .toolbar-divider{width:1px;height:22px;background:#d0d7de;margin:0 2px;}
-  .editor-help{font-size:12px;color:#57606a;margin:0 0 6px 0;}
 
   .existing-attach-box{
     margin-top:8px;
@@ -341,13 +340,10 @@
             <button type="button" data-editor-cmd="bold" title="굵게">B</button>
             <button type="button" data-editor-cmd="underline" title="밑줄">U</button>
             <span class="toolbar-divider"></span>
-            <button type="button" data-editor-cmd="justifyLeft" title="왼쪽 정렬">좌</button>
-            <button type="button" data-editor-cmd="justifyCenter" title="가운데 정렬">중</button>
-            <button type="button" data-editor-cmd="justifyRight" title="오른쪽 정렬">우</button>
-            <span class="toolbar-divider"></span>
-            <button type="button" id="insertTableBtn" title="표 삽입">표</button>
+            <button type="button" data-editor-cmd="justifyLeft" title="왼쪽 정렬">☰</button>
+            <button type="button" data-editor-cmd="justifyCenter" title="가운데 정렬">≡</button>
+            <button type="button" data-editor-cmd="justifyRight" title="오른쪽 정렬">☷</button>
           </div>
-          <div class="editor-help">이미지는 클릭하면 파란 테두리와 크기 조절 핸들이 표시됩니다.</div>
           <div id="contentEditor"
                contenteditable="true"
                style="min-height:100%; padding:8px; outline:none; white-space:pre-wrap; word-break:break-word;"></div>
@@ -695,6 +691,7 @@
           img.src = dataUrl;
           img.style.maxWidth = "100%";
           img.style.height = "auto";
+          img.style.width = "75%";
           img.style.display = "block";
           img.style.margin = "6px 0";
 
@@ -777,15 +774,6 @@
         focusEditor();
         document.execCommand(cmd, false, null);
         return;
-      }
-
-      if (btn.id === "insertTableBtn") {
-        focusEditor();
-        document.execCommand(
-          "insertHTML",
-          false,
-          '<table style="width:100%;border-collapse:collapse;margin:6px 0;"><tbody><tr><td style="border:1px solid #999;padding:6px;">&nbsp;</td><td style="border:1px solid #999;padding:6px;">&nbsp;</td></tr><tr><td style="border:1px solid #999;padding:6px;">&nbsp;</td><td style="border:1px solid #999;padding:6px;">&nbsp;</td></tr></tbody></table><div><br></div>'
-        );
       }
     });
 
@@ -891,6 +879,7 @@
           img.src = data.image_url;
           img.style.maxWidth = "100%";
           img.style.height = "auto";
+          img.style.width = "75%";
           img.style.display = "block";
           img.style.margin = "6px 0";
           editor.appendChild(img);
