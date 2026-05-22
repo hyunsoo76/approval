@@ -12,13 +12,20 @@
     width:100%;
     max-width:900px;
     margin:0 auto 14px auto;
-    display:flex;
+    display:inline-flex;
     align-items:center;
     gap:12px;
     color:#222;
     text-decoration:none;
+    padding:7px 11px;
+    border:1px solid #d8dee4;
+    border-radius:8px;
+    background:#fff;
+    box-shadow:0 1px 3px rgba(0,0,0,.05);
+    box-sizing:border-box;
+    transition:background .15s ease, border-color .15s ease;
   }
-  .brand-home:hover{ color:#222; text-decoration:none; }
+  .brand-home:hover{ color:#222; text-decoration:none; background:#f6f8fa; border-color:#c9d1d9; }
   .brand-home .brand-stamp-logo{ height:50px; width:auto; }
   .brand-home .system-wrap{
     display:inline-block;
@@ -202,6 +209,7 @@
     .brand-home .brand-stamp-logo{ height:42px; }
     .brand-home .brand-title{ font-size:18px; }
     .brand-home .brand-subtitle{ font-size:13px; }
+    .btn-link.pdf-btn{ padding:7px 10px; font-size:12px; }
     .header-wrapper { flex-direction:column; align-items:stretch; }
     .title-row h1 { font-size:28px; letter-spacing:0.25em; }
 
@@ -311,7 +319,6 @@
       justify-content:flex-start;
     }
     .action-stack .btn-link{
-      width:100%;
       text-align:center;
     }
   }
@@ -729,7 +736,7 @@
         <!-- ✅ (수정) 로그보기 + PDF 버튼을 같은 스택으로 묶어서 모바일 겹침 방지 -->
         <div class="action-stack">
           <div class="log-toggle" onclick="toggleLogs()">🔎 승인자 로그 보기</div>
-          <a class="btn-link" href="/approval/v2/{{ approval.id }}/pdf/?download=1" target="_blank">📄 PDF 저장</a>
+          <a class="btn-link pdf-btn" href="/approval/v2/{{ approval.id }}/pdf/?download=1" target="_blank">📄 PDF 저장</a>
         </div>
 
         <div id="logBox" class="log-box" style="display:none;">
@@ -765,15 +772,9 @@
         <a class="btn-link" href="/approval/v2/{{ approval.id }}/edit/">수정</a>
       {% endif %}
 
-      <a class="btn-link" href="/approval/v2/{{ approval.id }}/pdf/?download=1" target="_blank">
+      <a class="btn-link pdf-btn" href="/approval/v2/{{ approval.id }}/pdf/?download=1" target="_blank">
         📄 PDF 저장
       </a>
-
-      <a class="btn-link" href="/approval/v2/">리스트로 돌아가기</a>
-    </div>
-  {% else %}
-    <div class="btn-row" style="margin-top:18px;">
-      <a class="btn-link" href="/approval/v2/">리스트로 돌아가기</a>
     </div>
   {% endif %}
   
