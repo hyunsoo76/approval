@@ -213,6 +213,19 @@
   }
   .editor-toolbar input[type="color"]{width:36px;padding:2px;}
   .editor-toolbar .toolbar-divider{width:1px;height:22px;background:#d0d7de;margin:0 2px;}
+  .align-icon{display:inline-flex;flex-direction:column;gap:3px;align-items:flex-start;justify-content:center;width:20px;height:18px;}
+  .align-icon span{display:block;height:2px;background:#333;border-radius:2px;}
+  .align-icon.left span:nth-child(1){width:18px;}
+  .align-icon.left span:nth-child(2){width:13px;}
+  .align-icon.left span:nth-child(3){width:18px;}
+  .align-icon.center{align-items:center;}
+  .align-icon.center span:nth-child(1){width:18px;}
+  .align-icon.center span:nth-child(2){width:13px;}
+  .align-icon.center span:nth-child(3){width:18px;}
+  .align-icon.right{align-items:flex-end;}
+  .align-icon.right span:nth-child(1){width:18px;}
+  .align-icon.right span:nth-child(2){width:13px;}
+  .align-icon.right span:nth-child(3){width:18px;}
 
   .existing-attach-box{
     margin-top:8px;
@@ -340,9 +353,9 @@
             <button type="button" data-editor-cmd="bold" title="굵게">B</button>
             <button type="button" data-editor-cmd="underline" title="밑줄">U</button>
             <span class="toolbar-divider"></span>
-            <button type="button" data-editor-cmd="justifyLeft" title="왼쪽 정렬">☰</button>
-            <button type="button" data-editor-cmd="justifyCenter" title="가운데 정렬">≡</button>
-            <button type="button" data-editor-cmd="justifyRight" title="오른쪽 정렬">☷</button>
+            <button type="button" data-editor-cmd="justifyLeft" title="왼쪽 정렬"><span class="align-icon left"><span></span><span></span><span></span></span></button>
+            <button type="button" data-editor-cmd="justifyCenter" title="가운데 정렬"><span class="align-icon center"><span></span><span></span><span></span></span></button>
+            <button type="button" data-editor-cmd="justifyRight" title="오른쪽 정렬"><span class="align-icon right"><span></span><span></span><span></span></span></button>
           </div>
           <div id="contentEditor"
                contenteditable="true"
@@ -667,6 +680,28 @@
   onTpl();
   initializePaymentRows();
 
+  function imageFileToEditorDataUrl(file){
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const img = new Image();
+        img.onload = () => {
+          const maxWidth = 1200;
+          const scale = Math.min(1, maxWidth / img.naturalWidth);
+          const canvas = document.createElement("canvas");
+          canvas.width = Math.max(1, Math.round(img.naturalWidth * scale));
+          canvas.height = Math.max(1, Math.round(img.naturalHeight * scale));
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          resolve(canvas.toDataURL("image/jpeg", 0.82));
+        };
+        img.onerror = () => resolve(reader.result);
+        img.src = reader.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
   if (form && editor && hidden) {
     form.addEventListener("submit", () => {
       document.querySelectorAll('input[name="payment_amount[]"]').forEach(formatPaymentAmountInput);
@@ -681,11 +716,7 @@
           const file = item.getAsFile();
           if (!file) return;
 
-          const dataUrl = await new Promise((resolve) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(reader.result);
-            reader.readAsDataURL(file);
-          });
+          const dataUrl = await imageFileToEditorDataUrl(file);
 
           const img = document.createElement("img");
           img.src = dataUrl;

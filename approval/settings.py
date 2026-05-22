@@ -133,6 +133,10 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
+# Content editor can submit pasted screenshots as base64 HTML.
+DATA_UPLOAD_MAX_MEMORY_SIZE = 25 * 1024 * 1024
+FILE_UPLOAD_MAX_MEMORY_SIZE = 25 * 1024 * 1024
+
 FORCE_SCRIPT_NAME = os.environ.get("FORCE_SCRIPT_NAME", "")
 USE_X_FORWARDED_HOST = True
 LOGIN_URL = "/approval/admin/login/"
