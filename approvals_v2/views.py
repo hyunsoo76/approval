@@ -48,14 +48,12 @@ def parse_payment_accounts(request):
     account_numbers = request.POST.getlist("payment_account_number[]")
     account_names = request.POST.getlist("payment_account_name[]")
     amounts = request.POST.getlist("payment_amount[]")
-    notes = request.POST.getlist("payment_note[]")
 
     max_len = max(
         len(banks),
         len(account_numbers),
         len(account_names),
         len(amounts),
-        len(notes),
         0,
     )
 
@@ -66,7 +64,6 @@ def parse_payment_accounts(request):
             "account_number": (account_numbers[idx] if idx < len(account_numbers) else "").strip(),
             "account_name": (account_names[idx] if idx < len(account_names) else "").strip(),
             "amount": format_payment_amount(amounts[idx] if idx < len(amounts) else ""),
-            "note": (notes[idx] if idx < len(notes) else "").strip(),
         }
 
         if any(row.values()):
@@ -95,7 +92,6 @@ def normalize_payment_accounts(rows):
                 "account_number": (row.get("account_number") or "").strip(),
                 "account_name": (row.get("account_name") or "").strip(),
                 "amount": format_payment_amount(row.get("amount") or ""),
-                "note": (row.get("note") or "").strip(),
             }
         )
     return normalized
