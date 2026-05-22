@@ -236,7 +236,7 @@
     .payment-table tbody{display:block;}
     .payment-table tr{
       display:grid;
-      grid-template-columns:48px 82px minmax(120px,1fr) 82px;
+      grid-template-columns:34px 56px minmax(150px,1fr) 72px;
       margin-bottom:8px;
       border-top:1px solid #000;
       border-left:1px solid #000;
@@ -250,13 +250,13 @@
       font-size:12px;
       min-width:0;
     }
-    .payment-table .no-col{width:48px;}
-    .payment-table .bank-col{width:82px;}
-    .payment-table .no-col{grid-column:1;grid-row:1 / span 2;display:flex;align-items:center;justify-content:center;font-size:14px;}
+    .payment-table .no-col{width:34px;}
+    .payment-table .bank-col{width:56px;}
+    .payment-table .no-col{grid-column:1;grid-row:1 / span 2;display:flex;align-items:center;justify-content:center;font-size:14px;border-bottom:1px solid #000;}
     .payment-table .bank-col{grid-column:2;grid-row:1;}
     .payment-table .account-number{grid-column:3;grid-row:1;white-space:nowrap;overflow-x:auto;}
     .payment-table .name-cell{grid-column:4;grid-row:1;}
-    .payment-table .amount-cell{grid-column:2 / span 3;grid-row:2;}
+    .payment-table .amount-cell{grid-column:2 / span 3;grid-row:2;border-top:0;}
   }
 
   /* ===== 첨부 ===== */
