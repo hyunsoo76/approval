@@ -69,6 +69,7 @@
   .payment-table th{text-align:center;background:#f8f8f8;font-weight:700;}
   .payment-table .no-col{width:42px;text-align:center;}
   .payment-table .bank-col{width:110px;}
+  .payment-table .amount-col{width:130px;}
   .payment-table .amount-cell{text-align:right;}
   .payment-table input{width:100%;box-sizing:border-box;border:none;outline:none;background:transparent;font-size:13px;text-align:center;}
   .payment-table input[name="payment_amount[]"]{text-align:right;font-weight:800;}
@@ -104,9 +105,32 @@
     .sign-box-inner{font-size:11px;}
     .info-table th,.subject-table th,.content-table th{width:70px;}
     .content-table td{height:280px;}
-    .payment-table th,.payment-table td{padding:4px;font-size:12px;}
+    .payment-table{display:block;border-collapse:separate;}
+    .payment-table thead{display:none;}
+    .payment-table tbody{display:block;}
+    .payment-table tr{
+      display:grid;
+      grid-template-columns:48px 82px minmax(120px,1fr) 82px;
+      margin-bottom:8px;
+      border-top:1px solid #000;
+      border-left:1px solid #000;
+    }
+    .payment-table td{
+      display:block;
+      border:0;
+      border-right:1px solid #000;
+      border-bottom:1px solid #000;
+      padding:4px;
+      font-size:12px;
+      min-width:0;
+    }
     .payment-table .no-col{width:48px;}
     .payment-table .bank-col{width:82px;}
+    .payment-table .payment-no{grid-column:1;grid-row:1 / span 2;display:flex;align-items:center;justify-content:center;font-size:14px;}
+    .payment-table .bank-col{grid-column:2;grid-row:1;}
+    .payment-table .account-cell{grid-column:3;grid-row:1;}
+    .payment-table .name-cell{grid-column:4;grid-row:1;}
+    .payment-table .amount-cell{grid-column:2 / span 3;grid-row:2;}
     .payment-table input{font-size:12px;}
     .payment-table input[name="payment_account_number[]"]{white-space:nowrap;overflow-x:auto;}
   }
@@ -275,6 +299,15 @@
     </table>
 
     <table class="payment-table" id="paymentTable">
+      <thead>
+        <tr>
+          <th class="no-col">NO</th>
+          <th class="bank-col">은행명</th>
+          <th>계좌번호</th>
+          <th>계좌명</th>
+          <th class="amount-col">금액</th>
+        </tr>
+      </thead>
       <tbody id="paymentRows"></tbody>
     </table>
 
@@ -399,24 +432,15 @@
     const tr = document.createElement("tr");
     tr.className = "payment-main-row";
     tr.innerHTML = `
-      <td class="payment-no no-col" rowspan="2"></td>
+      <td class="payment-no no-col"></td>
       <td class="bank-col"><input type="text" name="payment_bank[]" value="" placeholder="은행" autocomplete="off"></td>
-      <td><input type="text" name="payment_account_number[]" value="" placeholder="계좌번호" autocomplete="off"></td>
-      <td><input type="text" name="payment_account_name[]" value="" placeholder="계좌명" autocomplete="off"></td>
+      <td class="account-cell"><input type="text" name="payment_account_number[]" value="" placeholder="계좌번호" autocomplete="off"></td>
+      <td class="name-cell"><input type="text" name="payment_account_name[]" value="" placeholder="계좌명" autocomplete="off"></td>
+      <td class="amount-cell"><input type="text" name="payment_amount[]" value="" placeholder="금액" inputmode="numeric" autocomplete="off"></td>
     `;
-
     paymentRows.appendChild(tr);
-    const amountTr = document.createElement("tr");
-    amountTr.className = "payment-amount-row";
-    amountTr.innerHTML = `
-      <td class="amount-cell" colspan="3"><input type="text" name="payment_amount[]" value="" placeholder="금액" inputmode="numeric" autocomplete="off"></td>
-    `;
-    paymentRows.appendChild(amountTr);
 
-    const inputs = [
-      ...tr.querySelectorAll("input"),
-      ...amountTr.querySelectorAll("input"),
-    ];
+    const inputs = tr.querySelectorAll("input");
     inputs[0].value = rowData?.bank || "";
     inputs[1].value = rowData?.account_number || "";
     inputs[2].value = rowData?.account_name || "";
@@ -436,11 +460,7 @@
     if (!paymentRows) return [];
 
     return Array.from(paymentRows.querySelectorAll("tr.payment-main-row")).map(tr => {
-      const amountTr = tr.nextElementSibling;
-      const inputs = [
-        ...tr.querySelectorAll("input"),
-        ...(amountTr ? amountTr.querySelectorAll("input") : []),
-      ];
+      const inputs = tr.querySelectorAll("input");
       return {
         bank: inputs[0]?.value || "",
         account_number: inputs[1]?.value || "",
@@ -475,7 +495,7 @@
 
     const rows = Array.from(paymentRows.querySelectorAll("tr.payment-main-row"));
     const last = rows[rows.length - 1];
-    const amountInput = last?.nextElementSibling ? last.nextElementSibling.querySelector('input[name="payment_amount[]"]') : null;
+    const amountInput = last ? last.querySelector('input[name="payment_amount[]"]') : null;
 
     if (!last || (amountInput && amountInput.value.trim() !== "")) {
       createPaymentRow({});

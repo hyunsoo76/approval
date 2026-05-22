@@ -203,6 +203,7 @@
     }
     .payment-table .no-col{width:34px;text-align:center;}
     .payment-table .bank-col{width:86px;}
+    .payment-table .amount-col{width:100px;}
     .payment-table td.no-col{font-weight:700;color:#444;}
     .payment-table .amount-cell{text-align:right;font-weight:800;}
 
@@ -355,16 +356,23 @@
 
   {% if approval.payment_accounts %}
     <table class="payment-table no-break">
+      <thead>
+        <tr>
+          <th class="no-col">NO</th>
+          <th class="bank-col">은행명</th>
+          <th>계좌번호</th>
+          <th>계좌명</th>
+          <th class="amount-col">금액</th>
+        </tr>
+      </thead>
       <tbody>
         {% for row in approval.payment_accounts %}
           <tr>
-            <td class="no-col" rowspan="2">{{ forloop.counter }}</td>
+            <td class="no-col">{{ forloop.counter }}</td>
             <td class="bank-col">{{ row.bank }}</td>
             <td>{{ row.account_number }}</td>
             <td>{{ row.account_name }}</td>
-          </tr>
-          <tr>
-            <td class="amount-cell" colspan="3">{{ row.amount }}</td>
+            <td class="amount-cell">{{ row.amount }}</td>
           </tr>
         {% endfor %}
       </tbody>

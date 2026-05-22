@@ -163,9 +163,11 @@
   .content-value table { max-width:100% !important; width:100% !important; table-layout:fixed; border-collapse:collapse; }
   .content-value th, .content-value td { word-break:break-word; overflow-wrap:anywhere; }
   .payment-table{width:100%;border-collapse:collapse;table-layout:fixed;margin-bottom:10px;}
-  .payment-table td{border:1px solid #000;padding:6px;font-size:13px;text-align:center;vertical-align:middle;word-break:break-word;}
+  .payment-table th,.payment-table td{border:1px solid #000;padding:6px;font-size:13px;text-align:center;vertical-align:middle;word-break:break-word;}
+  .payment-table th{background:#f8f8f8;font-weight:700;}
   .payment-table .no-col{width:42px;text-align:center;}
   .payment-table .bank-col{width:110px;}
+  .payment-table .amount-col{width:130px;}
   .payment-table td.no-col{text-align:center;color:#444;font-weight:700;}
   .payment-table .amount-cell{text-align:right;font-weight:800;}
   .payment-table .account-number{word-break:normal;overflow-wrap:normal;}
@@ -229,10 +231,32 @@
       padding:6px;
       font-size:13px;
     }
-    .payment-table td{padding:4px;font-size:12px;}
+    .payment-table{display:block;border-collapse:separate;}
+    .payment-table thead{display:none;}
+    .payment-table tbody{display:block;}
+    .payment-table tr{
+      display:grid;
+      grid-template-columns:48px 82px minmax(120px,1fr) 82px;
+      margin-bottom:8px;
+      border-top:1px solid #000;
+      border-left:1px solid #000;
+    }
+    .payment-table td{
+      display:block;
+      border:0;
+      border-right:1px solid #000;
+      border-bottom:1px solid #000;
+      padding:4px;
+      font-size:12px;
+      min-width:0;
+    }
     .payment-table .no-col{width:48px;}
     .payment-table .bank-col{width:82px;}
-    .payment-table .account-number{white-space:nowrap;overflow-x:auto;}
+    .payment-table .no-col{grid-column:1;grid-row:1 / span 2;display:flex;align-items:center;justify-content:center;font-size:14px;}
+    .payment-table .bank-col{grid-column:2;grid-row:1;}
+    .payment-table .account-number{grid-column:3;grid-row:1;white-space:nowrap;overflow-x:auto;}
+    .payment-table .name-cell{grid-column:4;grid-row:1;}
+    .payment-table .amount-cell{grid-column:2 / span 3;grid-row:2;}
   }
 
   /* ===== 첨부 ===== */
@@ -634,16 +658,23 @@
 
   {% if approval.payment_accounts %}
     <table class="payment-table">
+      <thead>
+        <tr>
+          <th class="no-col">NO</th>
+          <th class="bank-col">은행명</th>
+          <th>계좌번호</th>
+          <th>계좌명</th>
+          <th class="amount-col">금액</th>
+        </tr>
+      </thead>
       <tbody>
         {% for row in approval.payment_accounts %}
           <tr>
-            <td class="no-col" rowspan="2">{{ forloop.counter }}</td>
+            <td class="no-col">{{ forloop.counter }}</td>
             <td class="bank-col">{{ row.bank }}</td>
             <td class="account-number">{{ row.account_number }}</td>
-            <td>{{ row.account_name }}</td>
-          </tr>
-          <tr>
-            <td class="amount-cell" colspan="3">{{ row.amount }}</td>
+            <td class="name-cell">{{ row.account_name }}</td>
+            <td class="amount-cell">{{ row.amount }}</td>
           </tr>
         {% endfor %}
       </tbody>
