@@ -751,28 +751,33 @@
     if (!editor || !toolbar) return;
     let savedRange = null;
 
+    function nodeInsideEditor(node){
+      if (!node) return false;
+      return node === editor || editor.contains(node.nodeType === Node.TEXT_NODE ? node.parentNode : node);
+    }
+
     function saveSelection(){
       const sel = window.getSelection();
       if (!sel || !sel.rangeCount) return;
       const range = sel.getRangeAt(0);
-      if (editor.contains(range.commonAncestorContainer)) savedRange = range.cloneRange();
+      if (nodeInsideEditor(range.commonAncestorContainer)) savedRange = range.cloneRange();
     }
 
-    function focusEditor(){
+    function restoreSelection(){
       editor.focus({ preventScroll:true });
-      if (savedRange) {
-        const sel = window.getSelection();
-        sel.removeAllRanges();
-        sel.addRange(savedRange);
-      }
+      if (!savedRange) return false;
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(savedRange);
+      return true;
     }
 
     function applyInlineStyle(styleName, value){
-      focusEditor();
+      restoreSelection();
       const sel = window.getSelection();
       if (!sel || !sel.rangeCount || sel.isCollapsed) return;
       const range = sel.getRangeAt(0);
-      if (!editor.contains(range.commonAncestorContainer)) return;
+      if (!nodeInsideEditor(range.commonAncestorContainer)) return;
 
       const span = document.createElement("span");
       span.style[styleName] = value;
@@ -789,10 +794,24 @@
       saveSelection();
     }
 
+    editor.addEventListener("focus", saveSelection);
+    editor.addEventListener("input", saveSelection);
     editor.addEventListener("keyup", saveSelection);
     editor.addEventListener("mouseup", saveSelection);
+    editor.addEventListener("touchend", saveSelection);
     toolbar.addEventListener("mousedown", (e) => {
+      saveSelection();
       if (e.target.closest("button")) e.preventDefault();
+    });
+    toolbar.addEventListener("pointerdown", () => {
+      saveSelection();
+    });
+    toolbar.addEventListener("touchstart", () => {
+      saveSelection();
+    }, { passive:true });
+    document.addEventListener("selectionchange", () => {
+      const active = document.activeElement;
+      if (active === editor || nodeInsideEditor(window.getSelection()?.anchorNode)) saveSelection();
     });
 
     toolbar.addEventListener("click", (e) => {
@@ -802,8 +821,9 @@
 
       const cmd = btn.dataset.editorCmd;
       if (cmd) {
-        focusEditor();
+        restoreSelection();
         document.execCommand(cmd, false, null);
+        saveSelection();
         return;
       }
     });
@@ -812,6 +832,8 @@
     const fontColorInput = document.getElementById("fontColorInput");
 
     if (fontSizeSelect) {
+      fontSizeSelect.addEventListener("pointerdown", saveSelection);
+      fontSizeSelect.addEventListener("mousedown", saveSelection);
       fontSizeSelect.addEventListener("change", () => {
         if (fontSizeSelect.value) applyInlineStyle("fontSize", fontSizeSelect.value);
         fontSizeSelect.value = "";
@@ -819,7 +841,9 @@
     }
 
     if (fontColorInput) {
-      fontColorInput.addEventListener("input", () => {
+      fontColorInput.addEventListener("pointerdown", saveSelection);
+      fontColorInput.addEventListener("mousedown", saveSelection);
+      fontColorInput.addEventListener("change", () => {
         applyInlineStyle("color", fontColorInput.value);
       });
     }
